@@ -49,7 +49,16 @@ function promptWithReferences(prompt: string, references: ReferenceAsset[]) {
 	const index = references
 		.map((asset, position) => `Image ${position + 1}: ${asset.name}`)
 		.join('; ');
-	return `${prompt}\n\nReference images are attached in this order: ${index}. Use the relevant subjects, visual identity, palette, composition, and layout cues from these images as reference material while following the requested infographic brief.`;
+	const provenance = references
+		.slice(0, 4)
+		.map((asset, position) =>
+			asset.sourcePrompt
+				? `Image ${position + 1} was originally generated with this prompt:\n${asset.sourcePrompt.slice(0, 1200)}`
+				: ''
+		)
+		.filter(Boolean)
+		.join('\n\n');
+	return `${prompt}\n\nReference images are attached in this order: ${index}. Use the relevant subjects, visual identity, palette, composition, and layout cues from these images as reference material while following the requested infographic brief.${provenance ? `\n\nReference provenance:\n${provenance}` : ''}`;
 }
 
 export async function generateImage(input: GenerateImageInput): Promise<string> {

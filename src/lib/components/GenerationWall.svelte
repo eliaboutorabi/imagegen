@@ -16,12 +16,14 @@
 
 	let {
 		generations,
+		focusedGenerationId = null,
 		onOpen,
 		onRetry,
 		onRegenerate,
 		onReference
 	}: {
 		generations: Generation[];
+		focusedGenerationId?: string | null;
 		onOpen: (generation: Generation) => void;
 		onRetry: (generation: Generation) => void;
 		onRegenerate: (generation: Generation) => void;
@@ -106,8 +108,10 @@
 				{@const size = dimensions(generation)}
 				<article
 					class:error={generation.status === 'error'}
+					class:focused={focusedGenerationId === generation.id}
 					class:menu-open={openMenuId === generation.id}
 					class="generation-card"
+					data-generation-id={generation.id}
 				>
 					<div class="timeline-dot" class:active={generation.status === 'generating'}></div>
 					<div
@@ -336,6 +340,13 @@
 	.generation-card {
 		position: relative;
 		margin-bottom: 22px;
+		border-radius: 16px;
+		transition: box-shadow 180ms ease;
+	}
+	.generation-card.focused {
+		box-shadow:
+			0 0 0 2px var(--accent),
+			0 16px 38px rgb(20 21 24 / 18%);
 	}
 	.generation-card.menu-open {
 		z-index: 10;

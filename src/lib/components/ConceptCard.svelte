@@ -8,7 +8,8 @@
 		selected,
 		thumbnail = null,
 		onSelect,
-		onOpenPrompt
+		onOpenPrompt,
+		onOpenGeneration = () => undefined
 	}: {
 		concept: InfographicConcept;
 		index: number;
@@ -16,6 +17,7 @@
 		thumbnail?: Generation | null;
 		onSelect: () => void;
 		onOpenPrompt: () => void;
+		onOpenGeneration?: (generation: Generation) => void;
 	} = $props();
 
 	let copied = $state(false);
@@ -38,11 +40,24 @@
 		</div>
 		<h4>{concept.title}</h4>
 		<p class="strapline">{concept.strapline}</p>
-		{#if thumbnail?.imageUrl}
-			<div class="concept-thumbnail">
-				<img src={thumbnail.imageUrl} alt={`Latest generation for ${concept.title}`} />
-			</div>
-		{/if}
+	</button>
+	{#if thumbnail?.imageUrl}
+		<button
+			class="concept-thumbnail"
+			type="button"
+			onclick={() => onOpenGeneration(thumbnail)}
+			aria-label={`Find ${concept.title} on the generation wall`}
+			title="Find on generation wall"
+		>
+			<img src={thumbnail.imageUrl} alt={`Latest generation for ${concept.title}`} />
+		</button>
+	{/if}
+	<button
+		class="prompt-area"
+		type="button"
+		onclick={onSelect}
+		aria-label={`Select ${concept.title}`}
+	>
 		<p class="prompt">{concept.prompt}</p>
 	</button>
 	<div class="layout"><LayoutTemplate size={12} /><span>{concept.layout}</span></div>
@@ -136,18 +151,33 @@
 		line-height: 1.45;
 	}
 	.concept-thumbnail {
+		display: block;
 		width: 100%;
 		margin: 2px 0 14px;
+		padding: 0;
 		overflow: hidden;
 		border: 1px solid var(--line-soft);
 		border-radius: 11px;
 		background: var(--surface);
+	}
+	.concept-thumbnail:hover {
+		border-color: var(--ink);
+		box-shadow: 0 0 0 2px rgb(20 21 24 / 7%);
 	}
 	.concept-thumbnail img {
 		display: block;
 		width: 100%;
 		height: auto;
 		object-fit: contain;
+	}
+	.prompt-area {
+		display: block;
+		width: 100%;
+		padding: 0;
+		border: 0;
+		color: inherit;
+		text-align: left;
+		background: transparent;
 	}
 	.prompt {
 		display: -webkit-box;

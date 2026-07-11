@@ -29,6 +29,7 @@ export interface ReferenceAsset {
 	createdAt: number;
 	source: 'upload' | 'generation';
 	sourceGenerationId?: string;
+	sourcePrompt?: string;
 }
 
 export interface InfographicConcept {

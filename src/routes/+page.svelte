@@ -43,6 +43,7 @@
 		type DiagnosticRecord
 	} from '$lib/studio/diagnostics';
 	import { runGenerationBatch } from '$lib/studio/openai';
+	import { routeComposerIntent } from '$lib/studio/routing';
 	import { getStyle } from '$lib/studio/styles';
 	import {
 		activateProject,
@@ -69,6 +70,7 @@
 	} from '$lib/studio/types';
 
 	type Step = 'topic' | 'style' | 'brief' | 'planning' | 'concepts';
+	type PendingReferenceEdit = { instruction: string; referenceIds: string[] };
 
 	const starterTopics = [
 		'The hidden cost of meetings',
@@ -132,6 +134,8 @@
 	let batchPrompt = $state('');
 	let batchQuality = $state<ImageQuality>('medium');
 	let batchFormat = $state<ImageFormat>('webp');
+	let pendingReferenceEdit = $state<PendingReferenceEdit | null>(null);
+	let focusedGenerationId = $state<string | null>(null);
 	let lightboxZoom = $state(1);
 	let lightboxBaseWidth = $state(0);
 	let lightboxBaseHeight = $state(0);
@@ -198,11 +202,17 @@
 	}
 
 	function applyLoadedProject(value: StudioProject) {
+		const restoredReferences = (value.referenceAssets ?? []).map((asset) => ({
+			...asset,
+			sourcePrompt:
+				asset.sourcePrompt ??
+				value.generations.find((generation) => generation.id === asset.sourceGenerationId)?.prompt
+		}));
 		project = {
 			...newProject(),
 			...value,
 			notes: value.notes ?? [],
-			referenceAssets: value.referenceAssets ?? [],
+			referenceAssets: restoredReferences,
 			activeReferenceIds: value.activeReferenceIds ?? []
 		};
 		batchPrompt =
@@ -213,6 +223,7 @@
 		planIntro = '';
 		agentError = '';
 		openPrompt = null;
+		pendingReferenceEdit = null;
 		wallOpen = false;
 	}
 
@@ -246,6 +257,7 @@
 		sidebarOpen = false;
 		projectMenuOpen = false;
 		wallOpen = false;
+		pendingReferenceEdit = null;
 		await saveProject($state.snapshot(next));
 		recentProjects = [next, ...recentProjects.filter((item) => item.id !== next.id)];
 	}
@@ -254,15 +266,24 @@
 		const message = composerText.trim();
 		if (!message) return;
 		composerText = '';
+		const intent = routeComposerIntent({
+			stage: step,
+			activeReferenceCount: activeReferences.length
+		});
 
-		if (step === 'topic') {
+		if (intent === 'edit-reference') {
+			prepareReferenceEdit(message);
+			return;
+		}
+
+		if (intent === 'start-topic') {
 			project.topic = message;
 			step = 'style';
 			persist();
 			return;
 		}
 
-		if (step === 'concepts') {
+		if (intent === 'refine-concepts') {
 			project.notes.push(message);
 			persist();
 			void createConcepts(message);
@@ -274,6 +295,15 @@
 		project.concepts = [];
 		step = 'style';
 		persist();
+	}
+
+	function prepareReferenceEdit(instruction: string) {
+		const request = { instruction, referenceIds: [...project.activeReferenceIds] };
+		pendingReferenceEdit = request;
+		project.notes.push(instruction);
+		persist();
+		if (settings.apiKey) void createReferenceEdit(request);
+		else settingsOpen = true;
 	}
 
 	function useStarter(topic: string) {
@@ -434,6 +464,10 @@
 	}
 
 	async function generateJobs(jobs: Generation[]) {
+		wallOpen = true;
+		requestAnimationFrame(() =>
+			document.querySelector('.wall-scroll')?.scrollTo({ top: 0, behavior: 'smooth' })
+		);
 		await runGenerationBatch(
 			jobs,
 			{
@@ -477,6 +511,18 @@
 		);
 	}
 
+	function focusTimelineGeneration(generation: Generation) {
+		wallOpen = true;
+		focusedGenerationId = generation.id;
+		requestAnimationFrame(() => {
+			const card = document.querySelector(`[data-generation-id="${generation.id}"]`);
+			card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		});
+		setTimeout(() => {
+			if (focusedGenerationId === generation.id) focusedGenerationId = null;
+		}, 2400);
+	}
+
 	function createBatch(
 		concept: InfographicConcept,
 		count: number,
@@ -503,6 +549,49 @@
 		persist();
 		wallOpen = true;
 		void generateJobs(jobs);
+	}
+
+	async function createReferenceEdit(request: PendingReferenceEdit) {
+		const prompt = request.instruction.trim();
+		if (!prompt || !request.referenceIds.length) return;
+		if (!settings.apiKey) {
+			pendingReferenceEdit = request;
+			settingsOpen = true;
+			return;
+		}
+
+		const concept: InfographicConcept = {
+			id: crypto.randomUUID(),
+			title: 'Reference edit',
+			strapline: prompt,
+			prompt,
+			rationale: 'Direct transformation of the attached reference image.',
+			layout: 'Reference-guided edit',
+			palette: []
+		};
+		const primaryReference = project.referenceAssets.find((asset) =>
+			request.referenceIds.includes(asset.id)
+		);
+		const job: Generation = {
+			...makeGeneration(concept, 1, 1, Date.now(), true, prompt, settings.quality, 'webp'),
+			referenceIds: [...request.referenceIds],
+			width: primaryReference?.width ?? project.imageWidth,
+			height: primaryReference?.height ?? project.imageHeight,
+			aspect: primaryReference
+				? primaryReference.width === primaryReference.height
+					? ('square' as const)
+					: primaryReference.width > primaryReference.height
+						? ('landscape' as const)
+						: ('portrait' as const)
+				: project.aspect
+		};
+
+		project.generations = [job, ...project.generations];
+		pendingReferenceEdit = null;
+		persist();
+		wallOpen = true;
+		showAttachmentMessage('Reference edit started — it is now at the top of the generation wall.');
+		await generateJobs([job]);
 	}
 
 	function retryGeneration(generation: Generation) {
@@ -634,14 +723,15 @@
 			(asset) => asset.sourceGenerationId === generation.id
 		);
 		if (existing) {
+			if (!existing.sourcePrompt) existing.sourcePrompt = generation.prompt;
 			if (!project.activeReferenceIds.includes(existing.id)) {
 				if (project.activeReferenceIds.length >= MAX_ACTIVE_REFERENCES) {
 					showAttachmentMessage(`You can use up to ${MAX_ACTIVE_REFERENCES} references.`);
 					return;
 				}
 				project.activeReferenceIds = [...project.activeReferenceIds, existing.id];
-				persist();
 			}
+			persist();
 			showAttachmentMessage('Generation added as a reference.');
 			return;
 		}
@@ -659,7 +749,8 @@
 			height: generation.height ?? project.imageHeight,
 			createdAt: Date.now(),
 			source: 'generation',
-			sourceGenerationId: generation.id
+			sourceGenerationId: generation.id,
+			sourcePrompt: generation.prompt
 		};
 		project.referenceAssets = [asset, ...project.referenceAssets];
 		project.activeReferenceIds = [...project.activeReferenceIds, asset.id];
@@ -801,6 +892,10 @@
 			const concept = pendingConcept;
 			pendingConcept = null;
 			setTimeout(() => createBatch(concept, batchSize), 650);
+		}
+		if (pendingReferenceEdit && next.apiKey) {
+			const request = pendingReferenceEdit;
+			setTimeout(() => void createReferenceEdit(request), 650);
 		}
 	}
 
@@ -1321,6 +1416,7 @@
 									thumbnail={conceptThumbnail(concept.id)}
 									onSelect={() => selectConcept(concept)}
 									onOpenPrompt={() => (openPrompt = concept)}
+									onOpenGeneration={focusTimelineGeneration}
 								/>
 							{/each}
 						</div>
@@ -1495,6 +1591,7 @@
 			>
 			<GenerationWall
 				generations={project.generations}
+				{focusedGenerationId}
 				onOpen={openGenerationViewer}
 				onRetry={retryGeneration}
 				onRegenerate={regenerateGeneration}

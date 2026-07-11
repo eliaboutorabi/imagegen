@@ -55,7 +55,8 @@ describe('GPT Image requests', () => {
 			width: 100,
 			height: 100,
 			createdAt: 1,
-			source: 'upload'
+			source: 'generation',
+			sourcePrompt: 'A precise cobalt and cream systems diagram'
 		};
 
 		await generateImage({ ...baseInput, references: [reference] });
@@ -67,6 +68,7 @@ describe('GPT Image requests', () => {
 		expect(form.get('size')).toBe('2048x1152');
 		expect(form.getAll('image[]')).toHaveLength(1);
 		expect(String(form.get('prompt'))).toContain('Image 1: brand-board.png');
+		expect(String(form.get('prompt'))).toContain('A precise cobalt and cream systems diagram');
 		expect(new Headers(init.headers).has('Content-Type')).toBe(false);
 	});
 });
