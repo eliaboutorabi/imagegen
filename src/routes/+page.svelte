@@ -5,6 +5,8 @@
 		ArrowRight,
 		Check,
 		ChevronDown,
+		ChevronLeft,
+		ChevronRight,
 		Copy,
 		FileText,
 		GalleryHorizontalEnd,
@@ -136,6 +138,7 @@
 	let lightboxNaturalWidth = $state(0);
 	let lightboxNaturalHeight = $state(0);
 	let lightboxCopied = $state(false);
+	let lightboxFilmstripOpen = $state(true);
 	let lightboxDragging = $state(false);
 	let lightboxDragX = 0;
 	let lightboxDragY = 0;
@@ -159,6 +162,14 @@
 		project.activeReferenceIds
 			.map((id) => project.referenceAssets.find((asset) => asset.id === id))
 			.filter((asset): asset is ReferenceAsset => Boolean(asset))
+	);
+	let lightboxGenerations = $derived(
+		project.generations.filter((generation) => Boolean(generation.imageUrl))
+	);
+	let lightboxIndex = $derived(
+		openGeneration
+			? lightboxGenerations.findIndex((generation) => generation.id === openGeneration?.id)
+			: -1
 	);
 
 	onMount(async () => {
@@ -657,13 +668,20 @@
 	}
 
 	function openGenerationViewer(generation: Generation) {
+		const openingViewer = !openGeneration;
 		openGeneration = generation;
+		if (openingViewer) lightboxFilmstripOpen = true;
 		lightboxZoom = 1;
 		lightboxBaseWidth = 0;
 		lightboxBaseHeight = 0;
 		lightboxNaturalWidth = 0;
 		lightboxNaturalHeight = 0;
 		lightboxCopied = false;
+		requestAnimationFrame(() =>
+			document
+				.querySelector('.filmstrip-scroll [aria-current="true"]')
+				?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+		);
 	}
 
 	function closeGenerationViewer() {
@@ -671,10 +689,27 @@
 		lightboxDragging = false;
 	}
 
+	function navigateLightbox(offset: number) {
+		const next = lightboxGenerations[lightboxIndex + offset];
+		if (next) openGenerationViewer(next);
+	}
+
+	function generationThumbnailRatio(generation: Generation) {
+		if (generation.width && generation.height) return `${generation.width} / ${generation.height}`;
+		if (generation.aspect === 'portrait') return '2 / 3';
+		if (generation.aspect === 'square') return '1 / 1';
+		return '3 / 2';
+	}
+
+	function setLightboxFilmstrip(open: boolean) {
+		lightboxFilmstripOpen = open;
+		requestAnimationFrame(fitLightboxImage);
+	}
+
 	function fitLightboxImage() {
 		if (!lightboxNaturalWidth || !lightboxNaturalHeight) return;
 		const availableWidth = Math.max(240, window.innerWidth - 64);
-		const availableHeight = Math.max(220, window.innerHeight - 148);
+		const availableHeight = Math.max(220, window.innerHeight - (lightboxFilmstripOpen ? 216 : 104));
 		const fitScale = Math.min(
 			availableWidth / lightboxNaturalWidth,
 			availableHeight / lightboxNaturalHeight,
@@ -717,6 +752,7 @@
 	}
 
 	function startLightboxDrag(event: PointerEvent) {
+		if ((event.target as Element).closest('button')) return;
 		if (!lightboxStage || lightboxZoom <= 1 || event.button !== 0) return;
 		lightboxDragging = true;
 		lightboxDragX = event.clientX;
@@ -850,6 +886,8 @@
 	function handleWindowKeydown(event: KeyboardEvent) {
 		if (openGeneration) {
 			if (event.key === 'Escape') closeGenerationViewer();
+			else if (event.key === 'ArrowLeft') navigateLightbox(-1);
+			else if (event.key === 'ArrowRight') navigateLightbox(1);
 			else if (event.key === '+' || event.key === '=') setLightboxZoom(lightboxZoom + 0.25);
 			else if (event.key === '-') setLightboxZoom(lightboxZoom - 0.25);
 			else if (event.key === '0') setLightboxZoom(1);
@@ -1518,7 +1556,13 @@
 {/if}
 
 {#if openGeneration?.imageUrl}
-	<div class="lightbox" role="dialog" aria-modal="true" aria-label="Image viewer">
+	<div
+		class:filmstrip-hidden={!lightboxFilmstripOpen}
+		class="lightbox"
+		role="dialog"
+		aria-modal="true"
+		aria-label="Image viewer"
+	>
 		<header class="lightbox-toolbar">
 			<div class="lightbox-title">
 				<strong>{openGeneration.conceptTitle}</strong>
@@ -1561,6 +1605,15 @@
 					>
 				</div>
 				<button
+					class:active={lightboxFilmstripOpen}
+					class="lightbox-filmstrip-toggle"
+					type="button"
+					onclick={() => setLightboxFilmstrip(!lightboxFilmstripOpen)}
+					aria-label={lightboxFilmstripOpen ? 'Hide thumbnails' : 'Show thumbnails'}
+					title={lightboxFilmstripOpen ? 'Hide thumbnails' : 'Show thumbnails'}
+					aria-pressed={lightboxFilmstripOpen}><GalleryHorizontalEnd size={18} /></button
+				>
+				<button
 					class="lightbox-close"
 					type="button"
 					onclick={closeGenerationViewer}
@@ -1582,6 +1635,22 @@
 			onpointerup={stopLightboxDrag}
 			onpointercancel={stopLightboxDrag}
 		>
+			{#if lightboxGenerations.length > 1}
+				<button
+					class="lightbox-nav previous"
+					type="button"
+					disabled={lightboxIndex <= 0}
+					onclick={() => navigateLightbox(-1)}
+					aria-label="Previous image"><ChevronLeft size={23} /></button
+				>
+				<button
+					class="lightbox-nav next"
+					type="button"
+					disabled={lightboxIndex >= lightboxGenerations.length - 1}
+					onclick={() => navigateLightbox(1)}
+					aria-label="Next image"><ChevronRight size={23} /></button
+				>
+			{/if}
 			<div
 				class="lightbox-media"
 				style={lightboxBaseWidth
@@ -1598,10 +1667,27 @@
 			</div>
 		</div>
 
-		<div class="lightbox-hint">
-			<span>Scroll to zoom</span><i></i><span>Drag to move</span><i></i><span
-				>Double-click to toggle</span
-			>
-		</div>
+		{#if lightboxFilmstripOpen}
+			<footer class="lightbox-filmstrip">
+				<div class="filmstrip-label">
+					<span>{lightboxIndex + 1} of {lightboxGenerations.length}</span>
+					<small>← → to browse · Scroll to zoom · Drag to move</small>
+				</div>
+				<div class="filmstrip-scroll" aria-label="Generation thumbnails">
+					{#each lightboxGenerations as generation, index (generation.id)}
+						<button
+							class:active={generation.id === openGeneration.id}
+							type="button"
+							onclick={() => openGenerationViewer(generation)}
+							aria-label={`Open ${generation.conceptTitle}, image ${index + 1}`}
+							aria-current={generation.id === openGeneration.id ? 'true' : undefined}
+							style={`--thumbnail-ratio:${generationThumbnailRatio(generation)}`}
+						>
+							<img src={generation.imageUrl} alt="" />
+						</button>
+					{/each}
+				</div>
+			</footer>
+		{/if}
 	</div>
 {/if}

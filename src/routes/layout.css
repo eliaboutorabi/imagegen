@@ -1033,10 +1033,13 @@ select:focus-visible {
 	z-index: 80;
 	inset: 0;
 	display: grid;
-	grid-template-rows: 64px minmax(0, 1fr) 38px;
+	grid-template-rows: 64px minmax(0, 1fr) 112px;
 	color: #f6f5f2;
 	background: rgb(8 9 11 / 94%);
 	backdrop-filter: blur(18px);
+}
+.lightbox.filmstrip-hidden {
+	grid-template-rows: 64px minmax(0, 1fr);
 }
 .lightbox-toolbar {
 	position: relative;
@@ -1088,6 +1091,7 @@ select:focus-visible {
 	background: rgb(255 255 255 / 7%);
 }
 .zoom-controls button,
+.lightbox-filmstrip-toggle,
 .lightbox-close {
 	display: grid;
 	width: 38px;
@@ -1099,6 +1103,7 @@ select:focus-visible {
 	background: transparent;
 }
 .zoom-controls button:hover,
+.lightbox-filmstrip-toggle:hover,
 .lightbox-close:hover {
 	color: white;
 	background: rgb(255 255 255 / 11%);
@@ -1115,10 +1120,21 @@ select:focus-visible {
 	font-variant-numeric: tabular-nums;
 	font-weight: 700;
 }
+.lightbox-filmstrip-toggle,
 .lightbox-close {
 	border: 1px solid rgb(255 255 255 / 18%);
 	border-radius: 11px;
 	background: rgb(255 255 255 / 8%);
+}
+.lightbox-filmstrip-toggle.active {
+	border-color: rgb(255 255 255 / 34%);
+	color: #17181b;
+	background: #f2f0eb;
+	box-shadow: 0 6px 20px rgb(0 0 0 / 18%);
+}
+.lightbox-filmstrip-toggle.active:hover {
+	color: #17181b;
+	background: white;
 }
 .lightbox-close {
 	color: white;
@@ -1153,6 +1169,7 @@ select:focus-visible {
 	background: rgb(255 255 255 / 9%);
 }
 .lightbox-stage {
+	position: relative;
 	display: flex;
 	min-width: 0;
 	min-height: 0;
@@ -1164,6 +1181,37 @@ select:focus-visible {
 	scrollbar-color: rgb(255 255 255 / 22%) transparent;
 	cursor: zoom-in;
 	touch-action: none;
+}
+.lightbox-nav {
+	position: fixed;
+	z-index: 3;
+	top: 50%;
+	display: grid;
+	width: 44px;
+	height: 54px;
+	place-items: center;
+	padding: 0;
+	border: 1px solid rgb(255 255 255 / 16%);
+	border-radius: 13px;
+	color: white;
+	background: rgb(20 21 24 / 76%);
+	box-shadow: 0 14px 35px rgb(0 0 0 / 28%);
+	backdrop-filter: blur(12px);
+	transform: translateY(-50%);
+}
+.lightbox-nav.previous {
+	left: 18px;
+}
+.lightbox-nav.next {
+	right: 18px;
+}
+.lightbox-nav:hover:not(:disabled) {
+	border-color: rgb(255 255 255 / 30%);
+	background: rgb(40 41 45 / 90%);
+}
+.lightbox-nav:disabled {
+	opacity: 0.2;
+	cursor: not-allowed;
 }
 .lightbox-stage.zoomed {
 	align-items: safe center;
@@ -1188,20 +1236,75 @@ select:focus-visible {
 	box-shadow: 0 35px 100px rgb(0 0 0 / 48%);
 	user-select: none;
 }
-.lightbox-hint {
+.lightbox-filmstrip {
 	display: flex;
+	min-width: 0;
 	align-items: center;
-	justify-content: center;
-	gap: 9px;
-	color: rgb(255 255 255 / 42%);
-	background: rgb(15 16 19 / 74%);
-	font-size: 10px;
+	gap: 16px;
+	padding: 10px 16px max(10px, env(safe-area-inset-bottom));
+	border-top: 1px solid rgb(255 255 255 / 10%);
+	background: rgb(15 16 19 / 90%);
+	box-shadow: 0 -12px 35px rgb(0 0 0 / 18%);
+	backdrop-filter: blur(18px);
 }
-.lightbox-hint i {
-	width: 2px;
-	height: 2px;
-	border-radius: 50%;
-	background: rgb(255 255 255 / 28%);
+.filmstrip-label {
+	display: flex;
+	width: 160px;
+	flex: 0 0 160px;
+	flex-direction: column;
+	gap: 4px;
+}
+.filmstrip-label span {
+	font-size: 11px;
+	font-weight: 720;
+	font-variant-numeric: tabular-nums;
+}
+.filmstrip-label small {
+	color: rgb(255 255 255 / 42%);
+	font-size: 9px;
+	line-height: 1.4;
+}
+.filmstrip-scroll {
+	display: flex;
+	min-width: 0;
+	align-items: center;
+	gap: 8px;
+	flex: 1;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scrollbar-width: thin;
+	scrollbar-color: rgb(255 255 255 / 18%) transparent;
+}
+.filmstrip-scroll button {
+	display: grid;
+	height: 78px;
+	min-width: 48px;
+	max-width: 132px;
+	aspect-ratio: var(--thumbnail-ratio, 3 / 2);
+	flex: 0 0 auto;
+	place-items: center;
+	padding: 5px;
+	overflow: hidden;
+	border: 1px solid rgb(255 255 255 / 12%);
+	border-radius: 10px;
+	background: rgb(255 255 255 / 5%);
+	opacity: 0.62;
+}
+.filmstrip-scroll button:hover {
+	opacity: 0.9;
+}
+.filmstrip-scroll button.active {
+	border-color: rgb(255 255 255 / 74%);
+	background: rgb(255 255 255 / 11%);
+	box-shadow: 0 0 0 2px rgb(255 255 255 / 12%);
+	opacity: 1;
+}
+.filmstrip-scroll img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	border-radius: 6px;
 }
 
 .sidebar-backdrop {
@@ -1696,6 +1799,19 @@ select:focus-visible {
 }
 
 @media (max-width: 740px) {
+	.lightbox-nav.previous {
+		left: 8px;
+	}
+	.lightbox-nav.next {
+		right: 8px;
+	}
+	.filmstrip-label {
+		width: auto;
+		flex-basis: auto;
+	}
+	.filmstrip-label small {
+		display: none;
+	}
 	.topbar {
 		grid-template-columns: 1fr auto;
 		padding: 0 12px;
