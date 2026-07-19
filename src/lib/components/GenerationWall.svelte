@@ -16,6 +16,7 @@
 
 	let {
 		generations,
+		partialImages,
 		focusedGenerationId = null,
 		onOpen,
 		onRetry,
@@ -23,6 +24,7 @@
 		onReference
 	}: {
 		generations: Generation[];
+		partialImages: Record<string, { imageUrl: string; index: number }>;
 		focusedGenerationId?: string | null;
 		onOpen: (generation: Generation) => void;
 		onRetry: (generation: Generation) => void;
@@ -106,6 +108,7 @@
 			<div class="timeline-line"></div>
 			{#each generations as generation (generation.id)}
 				{@const size = dimensions(generation)}
+				{@const partial = partialImages[generation.id]}
 				<article
 					class:error={generation.status === 'error'}
 					class:focused={focusedGenerationId === generation.id}
@@ -130,6 +133,15 @@
 								src={generation.imageUrl}
 								alt={`Generated infographic: ${generation.conceptTitle}`}
 							/>
+						{:else if partial}
+							<img
+								class="partial-image"
+								src={partial.imageUrl}
+								alt={`Progressive rendering of ${generation.conceptTitle}`}
+							/>
+							<div class="partial-status">
+								<LoaderCircle size={13} /><span>Rendering preview · pass {partial.index + 1}</span>
+							</div>
 						{:else if generation.status === 'error'}
 							<div class="error-state">
 								<AlertCircle size={19} /><span>Generation paused</span><small
@@ -389,6 +401,40 @@
 	.image-frame.has-image {
 		aspect-ratio: auto;
 		background: #d9d7d1;
+	}
+	.image-frame .partial-image {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		animation: partial-arrival 320ms ease-out;
+	}
+	.partial-status {
+		position: absolute;
+		right: 10px;
+		bottom: 10px;
+		left: 10px;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 7px 9px;
+		border: 1px solid rgb(255 255 255 / 20%);
+		border-radius: 9px;
+		color: white;
+		background: rgb(20 21 24 / 76%);
+		box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+		backdrop-filter: blur(10px);
+		font-size: 11px;
+		font-weight: 680;
+	}
+	.partial-status :global(svg) {
+		animation: spin 900ms linear infinite;
+	}
+	@keyframes partial-arrival {
+		from {
+			opacity: 0.35;
+			filter: blur(8px);
+			transform: scale(1.01);
+		}
 	}
 	.asset-menu-button {
 		display: grid;

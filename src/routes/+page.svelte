@@ -126,6 +126,7 @@
 	let recentProjects = $state<StudioProject[]>([]);
 	let streamingConcepts = $state<Array<InfographicConcept | null>>([null, null, null]);
 	let streamingPartials = $state<Array<Partial<InfographicConcept>>>([{}, {}, {}]);
+	let partialImages = $state<Record<string, { imageUrl: string; index: number }>>({});
 	let openPrompt = $state<InfographicConcept | null>(null);
 	let promptCopied = $state(false);
 	let resetArmed = $state(false);
@@ -225,6 +226,7 @@
 		openPrompt = null;
 		pendingReferenceEdit = null;
 		wallOpen = false;
+		partialImages = {};
 	}
 
 	function persist() {
@@ -254,6 +256,7 @@
 		agentDiagnostic = null;
 		streamingConcepts = [null, null, null];
 		streamingPartials = [{}, {}, {}];
+		partialImages = {};
 		sidebarOpen = false;
 		projectMenuOpen = false;
 		wallOpen = false;
@@ -321,15 +324,15 @@
 
 	function handleAgentEvent(event: AgentEvent) {
 		if (event.type === 'direction-start') {
-			agentStatus = 'Developing three directions in parallel';
-			agentDetail = `${event.label} started on ${event.model}`;
+			agentStatus = 'Developing three directions';
+			agentDetail = `${event.label} is arriving from ${event.model}`;
 			return;
 		}
 		if (event.type === 'direction-progress') {
 			streamingPartials[event.index - 1] = event.partial;
 			agentStatus = 'Directions are arriving live';
 			const ready = streamingConcepts.filter(Boolean).length;
-			agentDetail = `${ready} of 3 complete · three model jobs running in parallel`;
+			agentDetail = `${ready} of 3 complete · prompts are streaming now`;
 			return;
 		}
 		if (event.type === 'direction-ready') {
@@ -341,8 +344,8 @@
 			return;
 		}
 		if (event.type === 'drafting') {
-			agentStatus = 'Writing the directions';
-			agentDetail = `Three cards are being developed in parallel · ${event.model}`;
+			agentStatus = 'Streaming the directions';
+			agentDetail = `Concept copy and image prompts are arriving from ${event.model}`;
 			return;
 		}
 		if (event.type === 'research-start') {
@@ -460,11 +463,22 @@
 		const index = project.generations.findIndex((item) => item.id === generation.id);
 		if (index === -1) return;
 		project.generations[index] = generation;
+		if (generation.status === 'complete' || generation.status === 'error') {
+			clearPartialImage(generation.id);
+		}
 		persist();
+	}
+
+	function clearPartialImage(id: string) {
+		if (!partialImages[id]) return;
+		const remaining = { ...partialImages };
+		delete remaining[id];
+		partialImages = remaining;
 	}
 
 	async function generateJobs(jobs: Generation[]) {
 		wallOpen = true;
+		for (const job of jobs) clearPartialImage(job.id);
 		requestAnimationFrame(() =>
 			document.querySelector('.wall-scroll')?.scrollTo({ top: 0, behavior: 'smooth' })
 		);
@@ -478,7 +492,13 @@
 				width: project.imageWidth,
 				height: project.imageHeight,
 				references: project.referenceAssets,
-				outputFormat: 'webp'
+				outputFormat: 'webp',
+				onPartial: (generation, imageUrl, index) => {
+					partialImages = {
+						...partialImages,
+						[generation.id]: { imageUrl, index }
+					};
+				}
 			},
 			updateGeneration
 		);
@@ -1343,8 +1363,8 @@
 						<div class="parallel-directions" aria-live="polite">
 							<div class="parallel-head">
 								<div>
-									<strong>Parallel direction studio</strong><small
-										>Each card has its own model job</small
+									<strong>Live direction studio</strong><small
+										>Each card fills in as the plan is written</small
 									>
 								</div>
 								<span>{streamingConcepts.filter(Boolean).length}/3 published</span>
@@ -1591,6 +1611,7 @@
 			>
 			<GenerationWall
 				generations={project.generations}
+				{partialImages}
 				{focusedGenerationId}
 				onOpen={openGenerationViewer}
 				onRetry={retryGeneration}

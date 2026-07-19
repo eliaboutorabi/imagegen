@@ -16,7 +16,7 @@
 
 	let draft = $state<StudioSettings>({
 		apiKey: '',
-		plannerModel: 'gpt-5.4',
+		plannerModel: 'gpt-5.6-luna',
 		imageModel: 'gpt-image-2',
 		quality: 'medium',
 		defaultBatchSize: 4,

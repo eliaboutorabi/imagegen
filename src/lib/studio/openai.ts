@@ -1,5 +1,6 @@
 import { ASPECT_SIZES } from './styles';
 import { recordDiagnostic } from './diagnostics';
+import { readSseStream } from './stream';
 import type { Aspect, Generation, ImageFormat, ImageQuality, ReferenceAsset } from './types';
 
 interface GenerateImageInput {
@@ -14,6 +15,7 @@ interface GenerateImageInput {
 	totalVariations: number;
 	references: ReferenceAsset[];
 	outputFormat: ImageFormat;
+	onPartial?: (imageUrl: string, index: number) => void;
 }
 
 interface OpenAIErrorBody {
@@ -81,6 +83,8 @@ export async function generateImage(input: GenerateImageInput): Promise<string> 
 		form.append('size', size);
 		form.append('output_format', input.outputFormat);
 		form.append('background', 'opaque');
+		form.append('stream', 'true');
+		form.append('partial_images', '2');
 		for (const [index, reference] of input.references.entries()) {
 			const blob = dataUrlToBlob(reference.dataUrl, reference.mimeType);
 			const safeName = reference.name.replace(/[^a-z0-9._-]+/gi, '-');
@@ -104,7 +108,9 @@ export async function generateImage(input: GenerateImageInput): Promise<string> 
 				quality: input.quality,
 				size,
 				output_format: input.outputFormat,
-				background: 'opaque'
+				background: 'opaque',
+				stream: true,
+				partial_images: 2
 			})
 		});
 	}
@@ -114,10 +120,30 @@ export async function generateImage(input: GenerateImageInput): Promise<string> 
 		throw apiError(response, body, `Image generation failed (${response.status}).`);
 	}
 
-	const result = (await response.json()) as { data?: Array<{ b64_json?: string }> };
-	const image = result.data?.[0]?.b64_json;
-	if (!image) throw new Error('OpenAI returned no image data.');
 	const mimeType = input.outputFormat === 'jpeg' ? 'image/jpeg' : `image/${input.outputFormat}`;
+	if (response.headers.get('content-type')?.includes('application/json')) {
+		const result = (await response.json()) as { data?: Array<{ b64_json?: string }> };
+		const image = result.data?.[0]?.b64_json;
+		if (!image) throw new Error('OpenAI returned no image data.');
+		return `data:${mimeType};base64,${image}`;
+	}
+
+	let image = '';
+	await readSseStream(response, (event) => {
+		if (event.type === 'image_generation.partial_image' && event.b64_json) {
+			input.onPartial?.(
+				`data:${mimeType};base64,${event.b64_json}`,
+				event.partial_image_index ?? 0
+			);
+		}
+		if (event.type === 'image_generation.completed' && event.b64_json) image = event.b64_json;
+		if (event.type === 'error') {
+			const error = new Error(event.error?.message ?? 'OpenAI image streaming failed.');
+			Object.assign(error, { code: event.error?.code, type: event.error?.type });
+			throw error;
+		}
+	});
+	if (!image) throw new Error('OpenAI returned no final image data.');
 	return `data:${mimeType};base64,${image}`;
 }
 
@@ -132,33 +158,36 @@ export async function runGenerationBatch(
 		height: number;
 		references: ReferenceAsset[];
 		outputFormat: ImageFormat;
+		onPartial?: (generation: Generation, imageUrl: string, index: number) => void;
 	},
 	onUpdate: (generation: Generation) => void
 ) {
+	const { onPartial, ...generationOptions } = options;
 	await Promise.allSettled(
 		generations.map(async (generation) => {
 			onUpdate({ ...generation, status: 'generating' });
 			try {
 				const imageUrl = await generateImage({
-					...options,
-					quality: generation.quality ?? options.quality,
-					outputFormat: generation.outputFormat ?? options.outputFormat,
+					...generationOptions,
+					quality: generation.quality ?? generationOptions.quality,
+					outputFormat: generation.outputFormat ?? generationOptions.outputFormat,
 					prompt: generation.prompt,
 					variation: generation.variation,
 					totalVariations: generation.totalVariations,
-					width: generation.width ?? options.width,
-					height: generation.height ?? options.height,
-					references: options.references.filter((asset) =>
+					width: generation.width ?? generationOptions.width,
+					height: generation.height ?? generationOptions.height,
+					references: generationOptions.references.filter((asset) =>
 						(generation.referenceIds ?? []).includes(asset.id)
-					)
+					),
+					onPartial: (imageUrl, index) => onPartial?.(generation, imageUrl, index)
 				});
 				onUpdate({ ...generation, status: 'complete', imageUrl });
 			} catch (error) {
 				recordDiagnostic('image-generation', error, {
-					model: options.model,
-					quality: generation.quality ?? options.quality,
-					outputFormat: generation.outputFormat ?? options.outputFormat,
-					aspect: options.aspect,
+					model: generationOptions.model,
+					quality: generation.quality ?? generationOptions.quality,
+					outputFormat: generation.outputFormat ?? generationOptions.outputFormat,
+					aspect: generationOptions.aspect,
 					variation: generation.variation
 				});
 				onUpdate({

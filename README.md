@@ -8,8 +8,8 @@ The application is fully static and bring-your-own-key: there is no Lattice serv
 
 ## Highlights
 
-- **Agentic creative direction** — turns a topic and brief into distinct, model-written infographic concepts.
-- **Parallel planning and rendering** — exposes prompt cards as they become available and tracks independent image jobs.
+- **Streamed creative direction** — turns a topic and brief into distinct, model-written infographic concepts using the Responses API directly from the browser.
+- **Live planning and rendering** — fills prompt cards as structured text arrives, then displays progressive image passes while independent image jobs run.
 - **Generative UI** — audience, information density, format, canvas size, batch size, quality, and output format are editable without rewriting the brief.
 - **Reference images** — upload source material or reuse a previous generation as a new reference.
 - **Editable prompts** — inspect the complete prompt and revise it before generating a batch.
@@ -22,7 +22,7 @@ The application is fully static and bring-your-own-key: there is no Lattice serv
 
 1. Describe the infographic you want to create.
 2. Choose an information strategy and tune the audience, density, aspect ratio, and canvas size.
-3. The Deep Agents creative director optionally researches current facts and develops three visual directions.
+3. The creative director optionally researches current facts and streams three structured visual directions.
 4. Review the full prompts while first-draft image jobs run independently.
 5. Select a direction, edit its prompt, and generate up to ten variations.
 6. Download a result, regenerate it, copy its prompt, or add it back as a reference.
@@ -33,8 +33,8 @@ The application is fully static and bring-your-own-key: there is no Lattice serv
 | ------------- | ------------------------------------------- |
 | Application   | SvelteKit 2, Svelte 5, TypeScript           |
 | Styling       | Tailwind CSS 4 plus component CSS           |
-| Agent harness | LangChain Deep Agents and LangGraph         |
-| Planning      | OpenAI Responses-compatible chat models     |
+| Agent harness | Direct OpenAI Responses API streaming       |
+| Planning      | `gpt-5.6-luna` with compatible fallbacks    |
 | Images        | `gpt-image-2`                               |
 | Persistence   | `localStorage` and IndexedDB                |
 | Validation    | Zod, Vitest, Svelte Check, ESLint, Prettier |

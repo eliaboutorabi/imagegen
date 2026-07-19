@@ -40,7 +40,9 @@ describe('GPT Image requests', () => {
 			model: 'gpt-image-2',
 			size: '2048x1152',
 			prompt: 'Create an infographic',
-			output_format: 'webp'
+			output_format: 'webp',
+			stream: true,
+			partial_images: 2
 		});
 	});
 
@@ -69,6 +71,44 @@ describe('GPT Image requests', () => {
 		expect(form.getAll('image[]')).toHaveLength(1);
 		expect(String(form.get('prompt'))).toContain('Image 1: brand-board.png');
 		expect(String(form.get('prompt'))).toContain('A precise cobalt and cream systems diagram');
+		expect(form.get('stream')).toBe('true');
+		expect(form.get('partial_images')).toBe('2');
 		expect(new Headers(init.headers).has('Content-Type')).toBe(false);
+	});
+
+	it('surfaces partial images before returning the completed render', async () => {
+		const encoder = new TextEncoder();
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue(
+				new Response(
+					new ReadableStream({
+						start(controller) {
+							controller.enqueue(
+								encoder.encode(
+									'event: image_generation.partial_image\ndata: {"type":"image_generation.partial_image","b64_json":"partial","partial_image_index":0}\n\n'
+								)
+							);
+							controller.enqueue(
+								encoder.encode(
+									'event: image_generation.completed\ndata: {"type":"image_generation.completed","b64_json":"final"}\n\n'
+								)
+							);
+							controller.close();
+						}
+					}),
+					{ headers: { 'content-type': 'text/event-stream' } }
+				)
+			)
+		);
+		const partials: Array<{ imageUrl: string; index: number }> = [];
+		const image = await generateImage({
+			...baseInput,
+			references: [],
+			onPartial: (imageUrl, index) => partials.push({ imageUrl, index })
+		});
+
+		expect(partials).toEqual([{ imageUrl: 'data:image/webp;base64,partial', index: 0 }]);
+		expect(image).toBe('data:image/webp;base64,final');
 	});
 });

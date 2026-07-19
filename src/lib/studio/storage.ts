@@ -1,4 +1,5 @@
 import type { StudioProject, StudioSettings } from './types';
+import { toCloneSafe } from './clone';
 
 const SETTINGS_KEY = 'modyfi-studio-settings-v1';
 const DATABASE_NAME = 'modyfi-studio';
@@ -13,7 +14,7 @@ function projectKey(id: string) {
 
 export const DEFAULT_SETTINGS: StudioSettings = {
 	apiKey: '',
-	plannerModel: 'gpt-5.4',
+	plannerModel: 'gpt-5.6-luna',
 	imageModel: 'gpt-image-2',
 	quality: 'medium',
 	defaultBatchSize: 4,
@@ -27,7 +28,12 @@ export function loadSettings(): StudioSettings {
 
 	try {
 		const saved = localStorage.getItem(SETTINGS_KEY);
-		return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+		if (!saved) return DEFAULT_SETTINGS;
+		const settings = { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } as StudioSettings;
+		if (['gpt-5.4', 'gpt-5', 'gpt-4.1'].includes(settings.plannerModel)) {
+			settings.plannerModel = DEFAULT_SETTINGS.plannerModel;
+		}
+		return settings;
 	} catch {
 		return DEFAULT_SETTINGS;
 	}
@@ -127,7 +133,7 @@ export async function saveProject(project: StudioProject): Promise<void> {
 		await new Promise<void>((resolve, reject) => {
 			const transaction = database.transaction(PROJECT_STORE, 'readwrite');
 			const store = transaction.objectStore(PROJECT_STORE);
-			store.put(project, projectKey(project.id));
+			store.put(toCloneSafe(project), projectKey(project.id));
 			store.put(project.id, ACTIVE_PROJECT_ID_KEY);
 			transaction.oncomplete = () => {
 				database.close();
