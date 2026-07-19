@@ -104,11 +104,17 @@ For a public multi-user product, replace persistent browser credentials with a s
 
 ## Deploying
 
-`npm run build` writes the static application to `build/`. That directory can be deployed to GitHub Pages, Cloudflare Pages, Netlify, Vercel, or any static file host.
+The repository includes a GitHub Actions workflow at `.github/workflows/deploy-pages.yml`. Every push to `main` runs the Svelte and TypeScript checks, linting, unit tests, and Playwright end-to-end tests before building and deploying the static site. The workflow can also be run manually from the **Actions** tab.
+
+To enable the first deployment, open **Settings → Pages** in the GitHub repository and select **GitHub Actions** as the source. After the workflow succeeds, this repository is published at:
+
+`https://eliaboutorabi.github.io/imagegen/`
+
+The workflow reads the Pages base path from GitHub and passes it to SvelteKit as `BASE_PATH`, so generated scripts, styles, and navigation work from the repository subdirectory. `npm run build` without that variable still produces a root-hosted local build in `build/`.
 
 Before publishing a deployment:
 
-1. Run `npm run check`, `npm run lint`, `npm run test:unit -- --run`, and `npm run build`.
+1. Run `npm run check`, `npm run lint`, `npm run test:unit -- --run`, `npx playwright test`, and `npm run build`.
 2. Confirm no secrets or `.env` files are staged.
 3. Configure HTTPS and appropriate security headers on the host.
 4. Add a privacy notice if other people will use the deployment.

@@ -8,6 +8,11 @@ import { fileURLToPath } from 'node:url';
 const pathBrowserShim = fileURLToPath(
 	new URL('./node_modules/path-browserify/index.js', import.meta.url)
 );
+const basePath = process.env.BASE_PATH ?? '';
+
+if (basePath !== '' && (!basePath.startsWith('/') || basePath.endsWith('/'))) {
+	throw new Error('BASE_PATH must be empty or start with / and not end with /.');
+}
 
 export default defineConfig({
 	// Deep Agents' browser bundle currently contains one transitive Node-style
@@ -24,12 +29,15 @@ export default defineConfig({
 	plugins: [
 		tailwindcss(),
 		sveltekit({
+			adapter: adapter(),
+			paths: {
+				base: basePath as '' | `/${string}`
+			},
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
-			},
-			adapter: adapter()
+			}
 		})
 	],
 	test: {
