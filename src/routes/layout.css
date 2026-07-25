@@ -1985,6 +1985,17 @@ html[data-theme='dark'] .style-card.selected {
 	background: #232428;
 	box-shadow: 0 12px 30px rgb(0 0 0 / 25%);
 }
+html[data-theme='dark'] .style-card {
+	border-color: #34353a;
+	background: #1f2023;
+}
+html[data-theme='dark'] .style-card .swatches i {
+	border-color: #1f2023;
+}
+html[data-theme='dark'] .style-card:hover .swatches i,
+html[data-theme='dark'] .style-card.selected .swatches i {
+	border-color: #232428;
+}
 html[data-theme='dark'] .batch-widget,
 html[data-theme='dark'] .direction-skeleton {
 	border-color: #36373b;
