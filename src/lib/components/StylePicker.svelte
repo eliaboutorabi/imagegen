@@ -63,7 +63,12 @@
 		<aside class="preview-stage" aria-live="polite">
 			<div class="preview-art">
 				{#key previewStyle.id}
-					<img src={previewStyle.image} alt={`${previewStyle.name} infographic style preview`} />
+					<img class="preview-backdrop" src={previewStyle.image} alt="" aria-hidden="true" />
+					<img
+						class="preview-main"
+						src={previewStyle.image}
+						alt={`${previewStyle.name} infographic style preview`}
+					/>
 				{/key}
 				<span class="sample-badge"><Sparkles size={11} /> Generated style sample</span>
 			</div>
@@ -223,33 +228,56 @@
 
 	.style-browser {
 		display: grid;
-		grid-template-columns: minmax(270px, 0.88fr) minmax(0, 1.35fr);
-		align-items: start;
-		gap: 18px;
+		grid-template-columns: minmax(270px, 0.9fr) minmax(0, 1.45fr);
+		height: 430px;
+		align-items: stretch;
+		gap: 10px;
+		padding: 10px;
+		overflow: hidden;
+		border: 1px solid var(--line);
+		border-radius: 19px;
+		background: var(--picker-card-muted);
 	}
 
 	.preview-stage {
-		position: sticky;
-		top: 14px;
+		position: relative;
+		display: grid;
+		height: 100%;
+		min-height: 0;
+		grid-template-rows: minmax(0, 1fr) auto;
 		overflow: hidden;
 		border: 1px solid var(--line);
-		border-radius: 17px;
+		border-radius: 13px;
 		background: var(--picker-card);
-		box-shadow: 0 12px 30px rgb(25 25 30 / 7%);
+		box-shadow: 0 10px 25px rgb(25 25 30 / 7%);
 	}
 
 	.preview-art {
 		position: relative;
-		aspect-ratio: 3 / 2;
+		min-height: 0;
 		overflow: hidden;
-		background: var(--picker-card-muted);
+		background: #17181b;
 	}
 
-	.preview-art img {
+	.preview-art .preview-backdrop,
+	.preview-art .preview-main {
+		position: absolute;
+		inset: 0;
 		display: block;
 		width: 100%;
 		height: 100%;
+	}
+
+	.preview-art .preview-backdrop {
 		object-fit: cover;
+		filter: blur(18px) saturate(0.85) brightness(0.68);
+		transform: scale(1.14);
+	}
+
+	.preview-art .preview-main {
+		z-index: 1;
+		object-fit: contain;
+		filter: drop-shadow(0 8px 20px rgb(0 0 0 / 24%));
 		animation: reveal 240ms ease both;
 	}
 
@@ -271,10 +299,14 @@
 		font-weight: 750;
 		letter-spacing: 0.07em;
 		text-transform: uppercase;
+		z-index: 2;
 	}
 
 	.preview-copy {
-		padding: 16px 17px 17px;
+		display: flex;
+		min-height: 0;
+		flex-direction: column;
+		padding: 14px 15px 15px;
 	}
 
 	.preview-meta {
@@ -315,7 +347,7 @@
 	}
 
 	.preview-copy p {
-		margin: 0 0 11px;
+		margin: 0 0 8px;
 		color: var(--muted);
 		font-size: 13px;
 		line-height: 1.42;
@@ -323,6 +355,7 @@
 
 	.preview-copy small {
 		display: block;
+		margin-top: 0;
 		padding-top: 10px;
 		border-top: 1px solid var(--line-soft);
 		color: var(--ink-2);
@@ -332,15 +365,21 @@
 
 	.style-grid {
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 10px;
+		height: 100%;
+		min-height: 0;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		grid-template-rows: repeat(4, minmax(0, 1fr));
+		gap: 8px;
 	}
 
 	.style-tile {
+		position: relative;
 		min-width: 0;
-		padding: 5px 5px 9px;
+		min-height: 0;
+		padding: 3px;
+		overflow: hidden;
 		border: 1px solid var(--line-soft);
-		border-radius: 13px;
+		border-radius: 11px;
 		text-align: left;
 		background: var(--picker-card-muted);
 		transition:
@@ -355,8 +394,8 @@
 	.style-tile.previewing {
 		border-color: color-mix(in srgb, var(--ink) 34%, var(--line));
 		background: var(--picker-card);
-		box-shadow: 0 10px 22px rgb(25 25 30 / 9%);
-		transform: translateY(-2px);
+		box-shadow: 0 8px 18px rgb(25 25 30 / 12%);
+		transform: translateY(-1px);
 	}
 
 	.style-tile.selected {
@@ -367,9 +406,10 @@
 	.tile-image {
 		position: relative;
 		display: block;
-		aspect-ratio: 3 / 2;
+		width: 100%;
+		height: 100%;
 		overflow: hidden;
-		border-radius: 9px;
+		border-radius: 8px;
 		background: var(--surface);
 	}
 
@@ -388,8 +428,17 @@
 	}
 
 	.tile-copy {
+		position: absolute;
+		right: 3px;
+		bottom: 3px;
+		left: 3px;
+		z-index: 2;
 		display: block;
-		padding: 8px 3px 0;
+		padding: 22px 7px 6px;
+		border-radius: 0 0 8px 8px;
+		color: white;
+		background: linear-gradient(transparent, rgb(8 9 12 / 82%));
+		pointer-events: none;
 	}
 
 	.tile-copy strong,
@@ -401,15 +450,16 @@
 	}
 
 	.tile-copy strong {
-		font-size: 12px;
+		font-size: 10px;
 		font-weight: 700;
 		letter-spacing: -0.015em;
+		text-shadow: 0 1px 4px rgb(0 0 0 / 45%);
 	}
 
 	.tile-copy small {
-		margin-top: 2px;
-		color: var(--muted);
-		font-size: 9px;
+		margin-top: 1px;
+		color: rgb(255 255 255 / 72%);
+		font-size: 7px;
 		font-weight: 680;
 		letter-spacing: 0.07em;
 		text-transform: uppercase;
@@ -485,15 +535,16 @@
 	@media (max-width: 820px) {
 		.style-browser {
 			grid-template-columns: 1fr;
+			height: auto;
 		}
 
 		.preview-stage {
-			position: relative;
-			top: auto;
+			height: auto;
 		}
 
 		.style-grid {
 			grid-template-columns: repeat(4, minmax(0, 1fr));
+			grid-template-rows: repeat(4, 92px);
 		}
 	}
 
