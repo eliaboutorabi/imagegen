@@ -1,4 +1,20 @@
-export type StyleId = 'editorial' | 'swiss' | 'soft-tech' | 'data-noir' | 'playful' | 'botanical';
+export type StyleId =
+	| 'editorial'
+	| 'swiss'
+	| 'soft-tech'
+	| 'data-noir'
+	| 'playful'
+	| 'botanical'
+	| 'brutalist'
+	| 'isometric'
+	| 'retro-future'
+	| 'paper-cutout'
+	| 'scientific-atlas'
+	| 'cartographic'
+	| 'monochrome'
+	| 'gradient-mesh'
+	| 'archival'
+	| 'whiteboard';
 
 export type Audience = 'Everyone' | 'Executives' | 'Students' | 'Experts';
 export type Aspect = 'landscape' | 'portrait' | 'square';
