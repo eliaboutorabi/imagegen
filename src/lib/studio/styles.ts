@@ -148,12 +148,12 @@ export const STYLE_OPTIONS: StyleOption[] = [
 	},
 	{
 		id: 'whiteboard',
-		name: 'Studio whiteboard',
-		description: 'Hand-drawn thinking that feels immediate',
-		strategy: 'Workshop',
-		bestFor: 'Frameworks · team alignment',
-		image: '/style-previews/whiteboard.jpg',
-		colors: ['#faf6ed', '#1a57b8', '#f06554']
+		name: 'Handwritten paper',
+		description: 'Expert notes, ink diagrams, and margin thinking',
+		strategy: 'Notebook',
+		bestFor: 'Frameworks · personal explainers',
+		image: '/style-previews/handwritten-paper.jpg',
+		colors: ['#f5ecd9', '#162a58', '#e86f5d']
 	}
 ];
 

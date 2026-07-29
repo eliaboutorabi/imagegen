@@ -31,7 +31,7 @@ The app does not generate these images at runtime.
 | `monochrome.jpg` | Pure white and black, extreme negative space, one oversized statistic, hairline rules, micro charts, and museum-catalog restraint. |
 | `gradient-mesh.jpg` | Indigo, cyan, magenta and peach spectral fields, translucent glass data cards, and flowing ribbons connecting key metrics. |
 | `archival-collage.jpg` | Torn paper, halftone documentary fragments, typewritten labels, red grease-pencil annotations, and an intelligent research-wall composition. |
-| `whiteboard.jpg` | Warm white canvas, expressive black marker diagrams, cobalt and coral highlights, sketched arrows, sticky notes, and a structured workshop journey. |
+| `handwritten-paper.jpg` | Warm ivory paper, expressive fountain-pen handwriting, cobalt diagrams, coral highlights, circled statistics, margin notes, cross-outs, and a clear expert-notebook hierarchy. |
 
 When adding a style, generate a new full-resolution 3:2 image with the shared prompt plus one concise
 style direction, save a 960 × 640 optimized derivative here, and add its metadata to
