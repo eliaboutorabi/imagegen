@@ -1045,7 +1045,7 @@
 />
 
 <svelte:head>
-	<title>Lattice — Infographic Studio</title>
+	<title>Infogen — Infographic Studio</title>
 	<meta
 		name="description"
 		content="Brainstorm, research, and generate remarkable infographics with an agentic creative director."

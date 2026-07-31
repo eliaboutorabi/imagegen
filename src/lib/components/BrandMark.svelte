@@ -1,5 +1,5 @@
-<div class="brand-lockup" aria-label="Lattice Studio">
-	<span>Lattice</span>
+<div class="brand-lockup" aria-label="Infogen Studio">
+	<span>Infogen</span>
 </div>
 
 <style>

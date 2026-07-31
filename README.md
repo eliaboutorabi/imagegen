@@ -1,10 +1,10 @@
-# Lattice
+# Infogen
 
 > An agentic visual studio for turning ideas into polished infographics.
 
-Lattice is a desktop-first SvelteKit application that helps you research a topic, explore several creative directions, refine production-ready prompts, and generate image batches with OpenAI. The experience is organized like a conversation, with interactive brief controls in the center and a persistent generation wall alongside it.
+Infogen is a desktop-first SvelteKit application that helps you research a topic, explore several creative directions, refine production-ready prompts, and generate image batches with OpenAI. The experience is organized like a conversation, with interactive brief controls in the center and a persistent generation wall alongside it.
 
-The application is fully static and bring-your-own-key: there is no Lattice server, account, or hosted database.
+The application is fully static and bring-your-own-key: there is no Infogen server, account, or hosted database.
 
 ## Highlights
 
@@ -51,13 +51,13 @@ The application is fully static and bring-your-own-key: there is no Lattice serv
 ### Install and run
 
 ```bash
-git clone https://github.com/your-name/lattice.git
-cd lattice
+git clone https://github.com/eliaboutorabi/imagegen.git
+cd imagegen
 npm install
 npm run dev
 ```
 
-Open the URL printed by Vite. Lattice starts in demo mode; use **Settings** to connect an OpenAI project key when you want to make live requests.
+Open the URL printed by Vite. Infogen starts in demo mode; use **Settings** to connect an OpenAI project key when you want to make live requests.
 
 No `.env` file is required. Do not add an API key to the source tree.
 
@@ -91,14 +91,14 @@ src/
 
 ## Data and API-key model
 
-Lattice has no application backend. The browser sends requests directly to `api.openai.com` and stores data locally:
+Infogen has no application backend. The browser sends requests directly to `api.openai.com` and stores data locally:
 
 - The OpenAI key and user settings are stored in `localStorage`.
 - Canvases, prompts, reference images, and generated images are stored in IndexedDB.
 - Recent error diagnostics are stored in `localStorage` to make failures inspectable.
-- Clearing site data removes locally saved Lattice data.
+- Clearing site data removes locally saved Infogen data.
 
-This architecture is convenient for a personal static tool, but it is not equivalent to a server-mediated production architecture. Anyone who can execute JavaScript on the deployed origin—including a compromised dependency or browser extension—could read a locally stored key. Use a restricted project key with conservative usage limits, never use Lattice on a shared or untrusted device, and rotate a key immediately if it is exposed.
+This architecture is convenient for a personal static tool, but it is not equivalent to a server-mediated production architecture. Anyone who can execute JavaScript on the deployed origin—including a compromised dependency or browser extension—could read a locally stored key. Use a restricted project key with conservative usage limits, never use Infogen on a shared or untrusted device, and rotate a key immediately if it is exposed.
 
 For a public multi-user product, replace persistent browser credentials with a server-side proxy or short-lived scoped credentials before launch.
 
@@ -122,7 +122,7 @@ Before publishing a deployment:
 
 ## Current scope
 
-Lattice is optimized for personal desktop use and infographic ideation. Mobile refinement, a server-backed authentication model, collaborative projects, image editing, collage tools, and layout composition are natural future extensions.
+Infogen is optimized for personal desktop use and infographic ideation. Mobile refinement, a server-backed authentication model, collaborative projects, image editing, collage tools, and layout composition are natural future extensions.
 
 ## Contributing
 

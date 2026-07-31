@@ -50,7 +50,7 @@ export function recordDiagnostic(
 		context
 	};
 
-	console.groupCollapsed(`[Lattice] ${stage}: ${record.message}`);
+	console.groupCollapsed(`[Infogen] ${stage}: ${record.message}`);
 	console.error(error);
 	console.info('Diagnostic context', context);
 	console.groupEnd();
