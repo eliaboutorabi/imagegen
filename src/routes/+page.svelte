@@ -68,6 +68,12 @@
 		StudioSettings,
 		StyleId
 	} from '$lib/studio/types';
+	import {
+		clampViewerPan,
+		clampViewerZoom,
+		getViewerMinimap,
+		wheelZoomFactor
+	} from '$lib/studio/viewport';
 
 	type Step = 'topic' | 'style' | 'brief' | 'planning' | 'concepts';
 	type PendingReferenceEdit = { instruction: string; referenceIds: string[] };
@@ -145,10 +151,19 @@
 	let lightboxCopied = $state(false);
 	let lightboxFilmstripOpen = $state(true);
 	let lightboxDragging = $state(false);
+	let lightboxPanX = $state(0);
+	let lightboxPanY = $state(0);
+	let lightboxStageWidth = $state(0);
+	let lightboxStageHeight = $state(0);
+	let lightboxMinimapDragging = $state(false);
 	let lightboxDragX = 0;
 	let lightboxDragY = 0;
-	let lightboxScrollX = 0;
-	let lightboxScrollY = 0;
+	let lightboxDragPanX = 0;
+	let lightboxDragPanY = 0;
+	let lightboxTargetZoom = $state(1);
+	let lightboxTargetPanX = 0;
+	let lightboxTargetPanY = 0;
+	let lightboxAnimationFrame = 0;
 	let attachmentInput: HTMLInputElement;
 	let lightboxStage = $state<HTMLDivElement>();
 
@@ -175,6 +190,17 @@
 		openGeneration
 			? lightboxGenerations.findIndex((generation) => generation.id === openGeneration?.id)
 			: -1
+	);
+	let lightboxMinimap = $derived(
+		getViewerMinimap(
+			lightboxBaseWidth,
+			lightboxBaseHeight,
+			lightboxStageWidth,
+			lightboxStageHeight,
+			lightboxZoom,
+			lightboxPanX,
+			lightboxPanY
+		)
 	);
 
 	onMount(async () => {
@@ -782,7 +808,13 @@
 		const openingViewer = !openGeneration;
 		openGeneration = generation;
 		if (openingViewer) lightboxFilmstripOpen = true;
+		cancelLightboxAnimation();
 		lightboxZoom = 1;
+		lightboxTargetZoom = 1;
+		lightboxPanX = 0;
+		lightboxPanY = 0;
+		lightboxTargetPanX = 0;
+		lightboxTargetPanY = 0;
 		lightboxBaseWidth = 0;
 		lightboxBaseHeight = 0;
 		lightboxNaturalWidth = 0;
@@ -796,8 +828,10 @@
 	}
 
 	function closeGenerationViewer() {
+		cancelLightboxAnimation();
 		openGeneration = null;
 		lightboxDragging = false;
+		lightboxMinimapDragging = false;
 	}
 
 	function navigateLightbox(offset: number) {
@@ -818,9 +852,11 @@
 	}
 
 	function fitLightboxImage() {
-		if (!lightboxNaturalWidth || !lightboxNaturalHeight) return;
-		const availableWidth = Math.max(240, window.innerWidth - 64);
-		const availableHeight = Math.max(220, window.innerHeight - (lightboxFilmstripOpen ? 216 : 104));
+		if (!lightboxNaturalWidth || !lightboxNaturalHeight || !lightboxStage) return;
+		lightboxStageWidth = lightboxStage.clientWidth;
+		lightboxStageHeight = lightboxStage.clientHeight;
+		const availableWidth = Math.max(240, lightboxStageWidth - 96);
+		const availableHeight = Math.max(220, lightboxStageHeight - 64);
 		const fitScale = Math.min(
 			availableWidth / lightboxNaturalWidth,
 			availableHeight / lightboxNaturalHeight,
@@ -828,6 +864,11 @@
 		);
 		lightboxBaseWidth = Math.round(lightboxNaturalWidth * fitScale);
 		lightboxBaseHeight = Math.round(lightboxNaturalHeight * fitScale);
+		const clamped = clampLightboxPan(lightboxTargetPanX, lightboxTargetPanY, lightboxTargetZoom);
+		lightboxTargetPanX = clamped.x;
+		lightboxTargetPanY = clamped.y;
+		lightboxPanX = clamped.x;
+		lightboxPanY = clamped.y;
 	}
 
 	function loadLightboxImage(event: Event) {
@@ -835,48 +876,108 @@
 		lightboxNaturalWidth = image.naturalWidth;
 		lightboxNaturalHeight = image.naturalHeight;
 		lightboxZoom = 1;
-		fitLightboxImage();
-		requestAnimationFrame(() => lightboxStage?.scrollTo({ left: 0, top: 0 }));
+		lightboxTargetZoom = 1;
+		lightboxPanX = 0;
+		lightboxPanY = 0;
+		lightboxTargetPanX = 0;
+		lightboxTargetPanY = 0;
+		requestAnimationFrame(fitLightboxImage);
 	}
 
-	function setLightboxZoom(next: number) {
-		const zoom = Math.min(5, Math.max(0.5, Math.round(next * 100) / 100));
-		if (zoom === lightboxZoom) return;
-		const stage = lightboxStage;
-		const previous = lightboxZoom;
-		const centerX = stage ? stage.scrollLeft + stage.clientWidth / 2 : 0;
-		const centerY = stage ? stage.scrollTop + stage.clientHeight / 2 : 0;
-		lightboxZoom = zoom;
-		requestAnimationFrame(() => {
-			if (!stage) return;
-			const factor = zoom / previous;
-			stage.scrollTo({
-				left: centerX * factor - stage.clientWidth / 2,
-				top: centerY * factor - stage.clientHeight / 2
-			});
-		});
+	function cancelLightboxAnimation() {
+		if (lightboxAnimationFrame) cancelAnimationFrame(lightboxAnimationFrame);
+		lightboxAnimationFrame = 0;
+	}
+
+	function clampLightboxPan(x: number, y: number, zoom = lightboxZoom) {
+		return clampViewerPan(
+			x,
+			y,
+			zoom,
+			lightboxBaseWidth,
+			lightboxBaseHeight,
+			lightboxStageWidth,
+			lightboxStageHeight
+		);
+	}
+
+	function animateLightboxViewport() {
+		const ease = 0.2;
+		const nextZoom = lightboxZoom + (lightboxTargetZoom - lightboxZoom) * ease;
+		const nextPan = clampLightboxPan(
+			lightboxPanX + (lightboxTargetPanX - lightboxPanX) * ease,
+			lightboxPanY + (lightboxTargetPanY - lightboxPanY) * ease,
+			nextZoom
+		);
+		const settled =
+			Math.abs(lightboxTargetZoom - nextZoom) < 0.001 &&
+			Math.abs(lightboxTargetPanX - nextPan.x) < 0.2 &&
+			Math.abs(lightboxTargetPanY - nextPan.y) < 0.2;
+		lightboxZoom = settled ? lightboxTargetZoom : nextZoom;
+		lightboxPanX = settled ? lightboxTargetPanX : nextPan.x;
+		lightboxPanY = settled ? lightboxTargetPanY : nextPan.y;
+		lightboxAnimationFrame = settled ? 0 : requestAnimationFrame(animateLightboxViewport);
+	}
+
+	function setLightboxZoom(next: number, focalX?: number, focalY?: number) {
+		if (!lightboxStageWidth || !lightboxStageHeight) return;
+		const zoom = clampViewerZoom(next);
+		if (Math.abs(zoom - lightboxTargetZoom) < 0.0001) return;
+		const pointX = focalX ?? lightboxStageWidth / 2;
+		const pointY = focalY ?? lightboxStageHeight / 2;
+		const contentX = (pointX - lightboxStageWidth / 2 - lightboxTargetPanX) / lightboxTargetZoom;
+		const contentY = (pointY - lightboxStageHeight / 2 - lightboxTargetPanY) / lightboxTargetZoom;
+		const desiredPan = clampLightboxPan(
+			pointX - lightboxStageWidth / 2 - contentX * zoom,
+			pointY - lightboxStageHeight / 2 - contentY * zoom,
+			zoom
+		);
+		lightboxTargetZoom = zoom;
+		lightboxTargetPanX = zoom === 1 ? 0 : desiredPan.x;
+		lightboxTargetPanY = zoom === 1 ? 0 : desiredPan.y;
+		if (!lightboxAnimationFrame) {
+			lightboxAnimationFrame = requestAnimationFrame(animateLightboxViewport);
+		}
 	}
 
 	function handleLightboxWheel(event: WheelEvent) {
 		event.preventDefault();
-		setLightboxZoom(lightboxZoom + (event.deltaY < 0 ? 0.2 : -0.2));
+		if (!lightboxStage) return;
+		const rect = lightboxStage.getBoundingClientRect();
+		const scale = wheelZoomFactor(event.deltaY, event.deltaMode, lightboxStageHeight);
+		setLightboxZoom(
+			lightboxTargetZoom * scale,
+			event.clientX - rect.left,
+			event.clientY - rect.top
+		);
 	}
 
 	function startLightboxDrag(event: PointerEvent) {
-		if ((event.target as Element).closest('button')) return;
+		if ((event.target as Element).closest('button, .lightbox-minimap')) return;
 		if (!lightboxStage || lightboxZoom <= 1 || event.button !== 0) return;
+		cancelLightboxAnimation();
+		lightboxTargetZoom = lightboxZoom;
+		lightboxTargetPanX = lightboxPanX;
+		lightboxTargetPanY = lightboxPanY;
 		lightboxDragging = true;
 		lightboxDragX = event.clientX;
 		lightboxDragY = event.clientY;
-		lightboxScrollX = lightboxStage.scrollLeft;
-		lightboxScrollY = lightboxStage.scrollTop;
+		lightboxDragPanX = lightboxPanX;
+		lightboxDragPanY = lightboxPanY;
 		lightboxStage.setPointerCapture(event.pointerId);
 	}
 
 	function moveLightboxDrag(event: PointerEvent) {
 		if (!lightboxStage || !lightboxDragging) return;
-		lightboxStage.scrollLeft = lightboxScrollX - (event.clientX - lightboxDragX);
-		lightboxStage.scrollTop = lightboxScrollY - (event.clientY - lightboxDragY);
+		const next = clampLightboxPan(
+			lightboxDragPanX + event.clientX - lightboxDragX,
+			lightboxDragPanY + event.clientY - lightboxDragY,
+			lightboxZoom
+		);
+		lightboxPanX = next.x;
+		lightboxPanY = next.y;
+		lightboxTargetPanX = next.x;
+		lightboxTargetPanY = next.y;
 	}
 
 	function stopLightboxDrag(event: PointerEvent) {
@@ -884,6 +985,69 @@
 		if (lightboxStage?.hasPointerCapture(event.pointerId)) {
 			lightboxStage.releasePointerCapture(event.pointerId);
 		}
+	}
+
+	function updateLightboxFromMinimap(event: PointerEvent) {
+		if (!lightboxMinimap) return;
+		const minimap = event.currentTarget as HTMLButtonElement;
+		const rect = minimap.getBoundingClientRect();
+		const insetX = (rect.width - lightboxMinimap.width) / 2;
+		const insetY = (rect.height - lightboxMinimap.height) / 2;
+		const x = Math.min(
+			1,
+			Math.max(0, (event.clientX - rect.left - insetX) / lightboxMinimap.width)
+		);
+		const y = Math.min(
+			1,
+			Math.max(0, (event.clientY - rect.top - insetY) / lightboxMinimap.height)
+		);
+		const desired = clampLightboxPan(
+			-(x - 0.5) * lightboxBaseWidth * lightboxZoom,
+			-(y - 0.5) * lightboxBaseHeight * lightboxZoom,
+			lightboxZoom
+		);
+		lightboxPanX = desired.x;
+		lightboxPanY = desired.y;
+		lightboxTargetPanX = desired.x;
+		lightboxTargetPanY = desired.y;
+	}
+
+	function startLightboxMinimapDrag(event: PointerEvent) {
+		if (event.button !== 0) return;
+		event.preventDefault();
+		event.stopPropagation();
+		cancelLightboxAnimation();
+		lightboxTargetZoom = lightboxZoom;
+		lightboxMinimapDragging = true;
+		(event.currentTarget as HTMLButtonElement).setPointerCapture(event.pointerId);
+		updateLightboxFromMinimap(event);
+	}
+
+	function moveLightboxMinimapDrag(event: PointerEvent) {
+		if (!lightboxMinimapDragging) return;
+		updateLightboxFromMinimap(event);
+	}
+
+	function stopLightboxMinimapDrag(event: PointerEvent) {
+		lightboxMinimapDragging = false;
+		const minimap = event.currentTarget as HTMLButtonElement;
+		if (minimap.hasPointerCapture(event.pointerId)) minimap.releasePointerCapture(event.pointerId);
+	}
+
+	function handleLightboxMinimapKeydown(event: KeyboardEvent) {
+		if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+		event.preventDefault();
+		const stepX = lightboxStageWidth * 0.12;
+		const stepY = lightboxStageHeight * 0.12;
+		const next = clampLightboxPan(
+			lightboxPanX + (event.key === 'ArrowLeft' ? stepX : event.key === 'ArrowRight' ? -stepX : 0),
+			lightboxPanY + (event.key === 'ArrowUp' ? stepY : event.key === 'ArrowDown' ? -stepY : 0),
+			lightboxZoom
+		);
+		lightboxPanX = next.x;
+		lightboxPanY = next.y;
+		lightboxTargetPanX = next.x;
+		lightboxTargetPanY = next.y;
 	}
 
 	async function copyLightboxPrompt() {
@@ -1003,8 +1167,8 @@
 			if (event.key === 'Escape') closeGenerationViewer();
 			else if (event.key === 'ArrowLeft') navigateLightbox(-1);
 			else if (event.key === 'ArrowRight') navigateLightbox(1);
-			else if (event.key === '+' || event.key === '=') setLightboxZoom(lightboxZoom + 0.25);
-			else if (event.key === '-') setLightboxZoom(lightboxZoom - 0.25);
+			else if (event.key === '+' || event.key === '=') setLightboxZoom(lightboxTargetZoom * 1.25);
+			else if (event.key === '-') setLightboxZoom(lightboxTargetZoom / 1.25);
 			else if (event.key === '0') setLightboxZoom(1);
 			return;
 		}
@@ -1690,17 +1854,20 @@
 				<div class="zoom-controls" aria-label="Zoom controls">
 					<button
 						type="button"
-						onclick={() => setLightboxZoom(lightboxZoom - 0.25)}
-						disabled={lightboxZoom <= 0.5}
+						onclick={() => setLightboxZoom(lightboxTargetZoom / 1.25)}
+						disabled={lightboxTargetZoom <= 1}
 						aria-label="Zoom out"><ZoomOut size={17} /></button
-					>
-					<button type="button" class="zoom-value" onclick={() => setLightboxZoom(1)}
-						>{Math.round(lightboxZoom * 100)}%</button
 					>
 					<button
 						type="button"
-						onclick={() => setLightboxZoom(lightboxZoom + 0.25)}
-						disabled={lightboxZoom >= 5}
+						class="zoom-value"
+						onclick={() => setLightboxZoom(1)}
+						aria-label="Fit image">{Math.round(lightboxZoom * 100)}%</button
+					>
+					<button
+						type="button"
+						onclick={() => setLightboxZoom(lightboxTargetZoom * 1.25)}
+						disabled={lightboxTargetZoom >= 5}
 						aria-label="Zoom in"><ZoomIn size={17} /></button
 					>
 				</div>
@@ -1772,7 +1939,7 @@
 			<div
 				class="lightbox-media"
 				style={lightboxBaseWidth
-					? `width:${lightboxBaseWidth * lightboxZoom}px;height:${lightboxBaseHeight * lightboxZoom}px`
+					? `width:${lightboxBaseWidth}px;height:${lightboxBaseHeight}px;left:${lightboxStageWidth / 2 + lightboxPanX}px;top:${lightboxStageHeight / 2 + lightboxPanY}px;transform:translate(-50%, -50%) scale(${lightboxZoom})`
 					: ''}
 			>
 				<img
@@ -1780,16 +1947,38 @@
 					src={openGeneration.imageUrl}
 					alt={`Generated infographic: ${openGeneration.conceptTitle}`}
 					onload={loadLightboxImage}
-					ondblclick={() => setLightboxZoom(lightboxZoom > 1 ? 1 : 2)}
+					ondblclick={() => setLightboxZoom(lightboxTargetZoom > 1 ? 1 : 2)}
 				/>
 			</div>
+
+			{#if lightboxMinimap}
+				<button
+					type="button"
+					class:dragging={lightboxMinimapDragging}
+					class="lightbox-minimap"
+					aria-label="Image minimap. Click or drag to navigate."
+					style={`width:${lightboxMinimap.width}px;height:${lightboxMinimap.height}px`}
+					onpointerdown={startLightboxMinimapDrag}
+					onpointermove={moveLightboxMinimapDrag}
+					onpointerup={stopLightboxMinimapDrag}
+					onpointercancel={stopLightboxMinimapDrag}
+					onkeydown={handleLightboxMinimapKeydown}
+				>
+					<img src={openGeneration.imageUrl} alt="" draggable="false" />
+					<span
+						class="minimap-viewport"
+						style={`left:${lightboxMinimap.viewportLeft}px;top:${lightboxMinimap.viewportTop}px;width:${lightboxMinimap.viewportWidth}px;height:${lightboxMinimap.viewportHeight}px`}
+					></span>
+					<span class="navigator-label">Navigator</span>
+				</button>
+			{/if}
 		</div>
 
 		{#if lightboxFilmstripOpen}
 			<footer class="lightbox-filmstrip">
 				<div class="filmstrip-label">
 					<span>{lightboxIndex + 1} of {lightboxGenerations.length}</span>
-					<small>← → to browse · Scroll to zoom · Drag to move</small>
+					<small>← → browse · Scroll to zoom · Drag to pan · 0 to fit</small>
 				</div>
 				<div class="filmstrip-scroll" aria-label="Generation thumbnails">
 					{#each lightboxGenerations as generation, index (generation.id)}
