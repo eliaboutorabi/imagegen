@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Check, Dices, Images, Sparkles } from '@lucide/svelte';
+	import { Bookmark, Check, Dices, Images, Sparkles } from '@lucide/svelte';
 	import { STYLE_OPTIONS } from '$lib/studio/styles';
 	import type { StyleId } from '$lib/studio/types';
 
@@ -19,8 +19,15 @@
 
 	let rolling = $state(false);
 	let previewed = $state<StyleId>(STYLE_OPTIONS[0].id);
+	let shortlisted = $state<StyleId[]>([]);
 	let previewStyle = $derived(
 		STYLE_OPTIONS.find((style) => style.id === previewed) ?? STYLE_OPTIONS[0]
+	);
+	let previewIsShortlisted = $derived(shortlisted.includes(previewStyle.id));
+	let shortlistedStyles = $derived(
+		shortlisted
+			.map((styleId) => STYLE_OPTIONS.find((style) => style.id === styleId))
+			.filter((style) => style !== undefined)
 	);
 
 	$effect(() => {
@@ -31,15 +38,18 @@
 		previewed = styleId;
 	}
 
+	function toggleShortlist(styleId: StyleId) {
+		shortlisted = shortlisted.includes(styleId)
+			? shortlisted.filter((candidate) => candidate !== styleId)
+			: [...shortlisted, styleId];
+	}
+
 	function surpriseMe() {
 		rolling = true;
-		const choices = STYLE_OPTIONS.filter((style) => style.id !== selected);
+		const choices = STYLE_OPTIONS.filter((style) => style.id !== previewed);
 		const next = choices[Math.floor(Math.random() * choices.length)];
 		previewed = next.id;
-		setTimeout(() => {
-			onSelect(next.id);
-			rolling = false;
-		}, 480);
+		setTimeout(() => (rolling = false), 480);
 	}
 </script>
 
@@ -48,7 +58,7 @@
 		<div>
 			<div class="eyebrow"><Sparkles size={13} /> Creative direction</div>
 			<h3 id="style-heading">Choose a visual language</h3>
-			<p>Hover or focus a tile to inspect it. Each sample was generated once and is reused here.</p>
+			<p>Click to preview, shortlist a few favorites, then choose one when you are ready.</p>
 		</div>
 		<div class="head-actions">
 			<span class="style-count"><Images size={14} /> {STYLE_OPTIONS.length} styles</span>
@@ -85,6 +95,22 @@
 				<h4>{previewStyle.name}</h4>
 				<p>{previewStyle.description}</p>
 				<small>Best for {previewStyle.bestFor.toLowerCase()}</small>
+				<div class="preview-actions">
+					<button
+						type="button"
+						class:saved={previewIsShortlisted}
+						class="save-style"
+						onclick={() => toggleShortlist(previewStyle.id)}
+						aria-pressed={previewIsShortlisted}
+					>
+						<Bookmark size={13} fill={previewIsShortlisted ? 'currentColor' : 'none'} />
+						{previewIsShortlisted ? 'Shortlisted' : 'Shortlist'}
+					</button>
+					<button class="use-style" type="button" onclick={() => onSelect(previewStyle.id)}>
+						Use this style
+						<Check size={13} strokeWidth={2.5} />
+					</button>
+				</div>
 			</div>
 		</aside>
 
@@ -97,14 +123,16 @@
 					class="style-tile"
 					onmouseenter={() => showPreview(style.id)}
 					onfocus={() => showPreview(style.id)}
-					onclick={() => onSelect(style.id)}
-					aria-pressed={selected === style.id}
-					aria-label={`Use ${style.name} style`}
+					onclick={() => showPreview(style.id)}
+					aria-pressed={previewed === style.id}
+					aria-label={`Preview ${style.name} style`}
 				>
 					<span class="tile-image">
 						<img src={style.image} alt="" loading={index < 6 ? 'eager' : 'lazy'} decoding="async" />
 						{#if selected === style.id}
 							<span class="check"><Check size={12} strokeWidth={3} /></span>
+						{:else if shortlisted.includes(style.id)}
+							<span class="saved-marker"><Bookmark size={11} fill="currentColor" /></span>
 						{/if}
 					</span>
 					<span class="tile-copy">
@@ -115,6 +143,24 @@
 			{/each}
 		</div>
 	</div>
+
+	{#if shortlistedStyles.length > 0}
+		<div class="shortlist-bar" aria-label="Shortlisted styles">
+			<span class="shortlist-label"><Bookmark size={13} fill="currentColor" /> Shortlist</span>
+			<div class="shortlist-chips">
+				{#each shortlistedStyles as style (style.id)}
+					<button
+						type="button"
+						class:active={previewed === style.id}
+						onclick={() => showPreview(style.id)}
+					>
+						<span style={`background-image:url(${style.image})`}></span>
+						{style.name}
+					</button>
+				{/each}
+			</div>
+		</div>
+	{/if}
 
 	<label class="custom-direction">
 		<span>Optional art direction</span>
@@ -363,6 +409,51 @@
 		font-weight: 630;
 	}
 
+	.preview-actions {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 7px;
+		margin-top: 11px;
+	}
+
+	.save-style,
+	.use-style {
+		display: inline-flex;
+		height: 35px;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		padding: 0 10px;
+		border: 1px solid var(--line);
+		border-radius: 9px;
+		font-size: 11px;
+		font-weight: 700;
+		white-space: nowrap;
+		transition: 150ms ease;
+	}
+
+	.save-style {
+		color: var(--ink-2);
+		background: var(--picker-card-muted);
+	}
+
+	.save-style.saved {
+		border-color: color-mix(in srgb, var(--ink) 28%, var(--line));
+		color: var(--ink);
+		background: var(--picker-card);
+	}
+
+	.use-style {
+		border-color: var(--ink);
+		color: var(--picker-card);
+		background: var(--ink);
+	}
+
+	.save-style:hover,
+	.use-style:hover {
+		transform: translateY(-1px);
+	}
+
 	.style-grid {
 		display: grid;
 		height: 100%;
@@ -478,6 +569,86 @@
 		color: white;
 		background: #17181b;
 		box-shadow: 0 4px 12px rgb(0 0 0 / 24%);
+	}
+
+	.saved-marker {
+		position: absolute;
+		top: 6px;
+		right: 6px;
+		display: grid;
+		width: 22px;
+		height: 22px;
+		place-items: center;
+		border: 1px solid rgb(255 255 255 / 38%);
+		border-radius: 7px;
+		color: white;
+		background: rgb(15 16 19 / 72%);
+		backdrop-filter: blur(6px);
+		box-shadow: 0 4px 10px rgb(0 0 0 / 22%);
+	}
+
+	.shortlist-bar {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		margin-top: 12px;
+		padding: 8px 10px;
+		overflow: hidden;
+		border: 1px solid var(--line-soft);
+		border-radius: 12px;
+		background: var(--picker-card-muted);
+	}
+
+	.shortlist-label {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		color: var(--muted);
+		font-size: 10px;
+		font-weight: 760;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
+	.shortlist-chips {
+		display: flex;
+		min-width: 0;
+		gap: 6px;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+
+	.shortlist-chips::-webkit-scrollbar {
+		display: none;
+	}
+
+	.shortlist-chips button {
+		display: inline-flex;
+		height: 30px;
+		align-items: center;
+		gap: 6px;
+		padding: 0 8px 0 4px;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+		color: var(--ink-2);
+		background: var(--picker-card);
+		font-size: 10px;
+		font-weight: 670;
+		white-space: nowrap;
+	}
+
+	.shortlist-chips button.active {
+		border-color: var(--ink);
+		color: var(--ink);
+	}
+
+	.shortlist-chips button span {
+		width: 25px;
+		height: 22px;
+		border-radius: 5px;
+		background-position: center;
+		background-size: cover;
 	}
 
 	.custom-direction {
