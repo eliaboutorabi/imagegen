@@ -93,6 +93,7 @@
 			id: crypto.randomUUID(),
 			topic: '',
 			styleId: null,
+			styleIds: [],
 			customDirection: '',
 			audience: 'Everyone',
 			aspect: 'landscape',
@@ -170,6 +171,11 @@
 	let selectedConcept = $derived(
 		project.concepts.find((concept) => concept.id === project.selectedConceptId) ?? null
 	);
+	let projectStyles = $derived(
+		(project.styleIds?.length ? project.styleIds : project.styleId ? [project.styleId] : []).map(
+			(styleId) => getStyle(styleId)
+		)
+	);
 	let activeJobs = $derived(
 		project.generations.filter((item) => item.status === 'queued' || item.status === 'generating')
 			.length
@@ -221,7 +227,7 @@
 	function stepForProject(value: StudioProject): Step {
 		return value.concepts?.length
 			? 'concepts'
-			: value.styleId
+			: value.styleIds?.length || value.styleId
 				? 'brief'
 				: value.topic
 					? 'style'
@@ -239,6 +245,7 @@
 			...newProject(),
 			...value,
 			notes: value.notes ?? [],
+			styleIds: value.styleIds?.length ? value.styleIds : value.styleId ? [value.styleId] : [],
 			referenceAssets: restoredReferences,
 			activeReferenceIds: value.activeReferenceIds ?? []
 		};
@@ -321,6 +328,7 @@
 
 		project.topic = message;
 		project.styleId = null;
+		project.styleIds = [];
 		project.concepts = [];
 		step = 'style';
 		persist();
@@ -340,8 +348,11 @@
 		submitComposer();
 	}
 
-	function selectStyle(styleId: StyleId) {
-		project.styleId = styleId;
+	function selectStyles(styleIds: StyleId[]) {
+		const chosen = [...new Set(styleIds)];
+		if (!chosen.length) return;
+		project.styleIds = chosen;
+		project.styleId = chosen[0];
 		persist();
 		setTimeout(() => {
 			if (step === 'style') step = 'brief';
@@ -388,7 +399,7 @@
 	}
 
 	async function createConcepts(refinement?: string) {
-		if (!project.styleId) return;
+		if (!projectStyles.length) return;
 		step = 'planning';
 		agentError = '';
 		agentDiagnostic = null;
@@ -399,17 +410,15 @@
 		streamingPartials = [{}, {}, {}];
 
 		try {
-			const style = getStyle(project.styleId);
 			const direction = project.customDirection.trim();
 			const plan = await planInfographics(
 				{
 					topic: refinement
 						? `${project.topic}\nAdditional direction: ${refinement}`
 						: project.topic,
-					styleId: project.styleId,
-					styleLabel: direction
-						? `${style.name}. Additional art direction: ${direction}`
-						: style.name,
+					styleIds: projectStyles.map((style) => style.id),
+					styleLabels: projectStyles.map((style) => style.name),
+					customDirection: direction || undefined,
 					audience: project.audience,
 					aspect: project.aspect,
 					imageWidth: project.imageWidth,
@@ -1420,18 +1429,22 @@
 						</div>
 						<div class="widget-indent">
 							<StylePicker
-								selected={project.styleId}
+								selected={projectStyles.map((style) => style.id)}
 								customDirection={project.customDirection}
 								connected={Boolean(settings.apiKey)}
-								onSelect={selectStyle}
+								onSelect={selectStyles}
 								onCustomDirection={updateCustomDirection}
 							/>
 						</div>
-					{:else if project.styleId}
+					{:else if projectStyles.length}
 						<div class="decision-summary">
 							<span><Sparkles size={13} /></span>
 							<div>
-								<small>Information strategy</small><strong>{getStyle(project.styleId).name}</strong>
+								<small
+									>{projectStyles.length === 1
+										? 'Information strategy'
+										: `${projectStyles.length} shortlisted styles`}</small
+								><strong>{projectStyles.map((style) => style.name).join(' · ')}</strong>
 							</div>
 							<button type="button" onclick={() => (step = 'style')}>Edit</button>
 						</div>

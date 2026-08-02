@@ -152,13 +152,24 @@ function plannerCandidates(requested?: string) {
 
 function demoPlan(input: PlanInput): PlanResult {
 	const topic = input.topic.replace(/[.!?]+$/, '');
-	const shared = `Create a premium ${input.imageWidth}×${input.imageHeight} ${input.aspect} infographic about “${topic}” for ${input.audience.toLowerCase()}. Use a ${input.styleLabel.toLowerCase()} visual language, impeccable typography, clear information hierarchy, generous negative space, concise editorial copy, and accurate legible labels. Density ${input.density}/3. No logos, mockups, watermarks, or decorative filler.`;
+	const styles = input.styleLabels.length ? input.styleLabels : ['Editorial narrative'];
+	const shared = (index: number) =>
+		`Create a premium ${input.imageWidth}×${input.imageHeight} ${input.aspect} infographic about “${topic}” for ${input.audience.toLowerCase()}. Use ${styles[index % styles.length]} as the primary visual language${
+			styles.length > input.count
+				? `, thoughtfully borrowing compatible details from ${
+						styles
+							.filter((_, styleIndex) => styleIndex % input.count === index)
+							.slice(1)
+							.join(' and ') || 'the approved shortlist'
+					}`
+				: ''
+		}. ${input.customDirection ? `Additional art direction: ${input.customDirection}. ` : ''}Use impeccable typography, clear information hierarchy, generous negative space, concise editorial copy, and accurate legible labels. Density ${input.density}/3. No logos, mockups, watermarks, or decorative filler.`;
 	const concepts: InfographicConcept[] = [
 		{
 			id: uid(),
 			title: 'The signal map',
 			strapline: 'One idea, revealed through connected evidence.',
-			prompt: `${shared} Organize the story as a central signal map: one bold thesis in the center, four connected evidence nodes, a slim annotation rail, and a decisive takeaway footer. Use restrained data marks and subtle directional lines.`,
+			prompt: `${shared(0)} Organize the story as a central signal map: one bold thesis in the center, four connected evidence nodes, a slim annotation rail, and a decisive takeaway footer. Use restrained data marks and subtle directional lines.`,
 			rationale: 'A connected map makes relationships and causality easy to scan.',
 			layout: 'Central thesis · four evidence nodes · takeaway rail',
 			palette: ['#F2F0E8', '#141414', '#FF5A3D', '#7357FF']
@@ -167,7 +178,7 @@ function demoPlan(input: PlanInput): PlanResult {
 			id: uid(),
 			title: 'Then / now / next',
 			strapline: 'A cinematic timeline with a point of view.',
-			prompt: `${shared} Tell the story as a three-act horizontal timeline labeled THEN, NOW, and NEXT. Give each act a distinct scale and rhythm, with one hero statistic, two supporting facts, and a small visual metaphor. Finish with one forward-looking conclusion.`,
+			prompt: `${shared(1)} Tell the story as a three-act horizontal timeline labeled THEN, NOW, and NEXT. Give each act a distinct scale and rhythm, with one hero statistic, two supporting facts, and a small visual metaphor. Finish with one forward-looking conclusion.`,
 			rationale: 'The temporal structure turns a broad topic into a memorable narrative.',
 			layout: 'Three-act timeline · hero statistics · closing forecast',
 			palette: ['#11141A', '#F2F0E8', '#CBFF58', '#6A5CFF']
@@ -176,7 +187,7 @@ function demoPlan(input: PlanInput): PlanResult {
 			id: uid(),
 			title: 'The field guide',
 			strapline: 'A collectible visual system for the essential ideas.',
-			prompt: `${shared} Design a modular field guide with six numbered cards in an asymmetric grid. Each card pairs a concise insight with a tiny diagram or symbol. Add a strong title block, a one-line legend, and a final “remember this” panel.`,
+			prompt: `${shared(2)} Design a modular field guide with six numbered cards in an asymmetric grid. Each card pairs a concise insight with a tiny diagram or symbol. Add a strong title block, a one-line legend, and a final “remember this” panel.`,
 			rationale: 'Modular cards make dense information approachable and reusable.',
 			layout: 'Title block · six modular cards · memory panel',
 			palette: ['#E8F2E5', '#214F3B', '#D97954', '#F2C85B']
@@ -205,8 +216,8 @@ async function requestPlan(
 			store: false,
 			stream: true,
 			instructions:
-				'You are a senior infographic creative director. Produce sharply differentiated, production-ready directions with accurate, concise on-canvas copy. Use web search only when current facts materially affect accuracy. Every direction must use a different story structure, information architecture, and topic-specific visual metaphor.',
-			input: `Topic: ${input.topic}\nCreative strategy: ${input.styleLabel}\nAudience: ${input.audience}\nFormat: ${input.aspect}\nCanvas: ${input.imageWidth}×${input.imageHeight}\nInformation density: ${input.density}/3\nCreate exactly ${input.count} original directions. Each image prompt must be complete and written specifically for this brief.`,
+				'You are a senior infographic creative director. Produce sharply differentiated, production-ready directions with accurate, concise on-canvas copy. Use web search only when current facts materially affect accuracy. Every direction must use a different story structure, information architecture, and topic-specific visual metaphor. Treat every visual language in the approved shortlist as intentional user input: distribute them across the directions, give each direction a clear primary style, combine compatible shortlisted styles only when needed to represent a shortlist longer than the direction count, and never silently discard an approved style.',
+			input: `Topic: ${input.topic}\nApproved visual-language shortlist:\n${input.styleLabels.map((style, index) => `${index + 1}. ${style}`).join('\n')}\n${input.customDirection ? `Additional art direction: ${input.customDirection}\n` : ''}Audience: ${input.audience}\nFormat: ${input.aspect}\nCanvas: ${input.imageWidth}×${input.imageHeight}\nInformation density: ${input.density}/3\nCreate exactly ${input.count} original directions. Each image prompt must be complete, written specifically for this brief, and explicitly name its primary approved visual language. Across the complete set, reflect every approved visual language.`,
 			tools: [{ type: 'web_search' }],
 			...(model.startsWith('gpt-5') ? { reasoning: { effort: 'low' } } : {}),
 			text: {

@@ -4,8 +4,8 @@ import type { AgentEvent, PlanInput } from './types';
 
 const input: PlanInput = {
 	topic: 'How urban trees cool cities',
-	styleId: 'editorial',
-	styleLabel: 'Editorial',
+	styleIds: ['editorial'],
+	styleLabels: ['Editorial narrative'],
 	audience: 'Everyone',
 	aspect: 'landscape',
 	imageWidth: 1536,
@@ -24,6 +24,22 @@ describe('infographic planning', () => {
 		expect(result.researched).toBe(false);
 		expect(result.concepts.every((concept) => concept.prompt.includes('urban trees'))).toBe(true);
 		expect(new Set(result.concepts.map((concept) => concept.layout)).size).toBe(3);
+	});
+
+	it('carries every shortlisted style into the planned directions', async () => {
+		const result = await planInfographics(
+			{
+				...input,
+				styleIds: ['editorial', 'swiss', 'whiteboard'],
+				styleLabels: ['Editorial narrative', 'Data-led analysis', 'Handwritten paper']
+			},
+			'',
+			() => undefined
+		);
+
+		expect(result.concepts[0].prompt).toContain('Editorial narrative');
+		expect(result.concepts[1].prompt).toContain('Data-led analysis');
+		expect(result.concepts[2].prompt).toContain('Handwritten paper');
 	});
 
 	it('streams a strict Responses plan without loading a Node agent runtime', async () => {

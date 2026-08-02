@@ -81,6 +81,7 @@ export interface StudioProject {
 	id: string;
 	topic: string;
 	styleId: StyleId | null;
+	styleIds: StyleId[];
 	customDirection: string;
 	audience: Audience;
 	aspect: Aspect;
@@ -115,8 +116,9 @@ export type AgentEvent =
 
 export interface PlanInput {
 	topic: string;
-	styleId: StyleId;
-	styleLabel: string;
+	styleIds: StyleId[];
+	styleLabels: string[];
+	customDirection?: string;
 	audience: Audience;
 	aspect: Aspect;
 	imageWidth: number;

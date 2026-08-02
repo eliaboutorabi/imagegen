@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Bookmark, Check, Dices, Images, Sparkles } from '@lucide/svelte';
+	import { ArrowRight, Bookmark, Check, Dices, Images, Sparkles } from '@lucide/svelte';
 	import { STYLE_OPTIONS } from '$lib/studio/styles';
 	import type { StyleId } from '$lib/studio/types';
 
@@ -10,14 +10,15 @@
 		onSelect,
 		onCustomDirection
 	}: {
-		selected: StyleId | null;
+		selected: StyleId[];
 		customDirection: string;
 		connected: boolean;
-		onSelect: (style: StyleId) => void;
+		onSelect: (styles: StyleId[]) => void;
 		onCustomDirection: (value: string) => void;
 	} = $props();
 
 	let rolling = $state(false);
+	let selectionInitialized = $state(false);
 	let previewed = $state<StyleId>(STYLE_OPTIONS[0].id);
 	let shortlisted = $state<StyleId[]>([]);
 	let previewStyle = $derived(
@@ -31,7 +32,10 @@
 	);
 
 	$effect(() => {
-		if (selected) previewed = selected;
+		if (selectionInitialized) return;
+		previewed = selected[0] ?? STYLE_OPTIONS[0].id;
+		shortlisted = [...selected];
+		selectionInitialized = true;
 	});
 
 	function showPreview(styleId: StyleId) {
@@ -106,7 +110,7 @@
 						<Bookmark size={13} fill={previewIsShortlisted ? 'currentColor' : 'none'} />
 						{previewIsShortlisted ? 'Shortlisted' : 'Shortlist'}
 					</button>
-					<button class="use-style" type="button" onclick={() => onSelect(previewStyle.id)}>
+					<button class="use-style" type="button" onclick={() => onSelect([previewStyle.id])}>
 						Use this style
 						<Check size={13} strokeWidth={2.5} />
 					</button>
@@ -118,7 +122,7 @@
 			{#each STYLE_OPTIONS as style, index (style.id)}
 				<button
 					type="button"
-					class:selected={selected === style.id}
+					class:selected={selected.includes(style.id)}
 					class:previewing={previewed === style.id}
 					class="style-tile"
 					onmouseenter={() => showPreview(style.id)}
@@ -129,7 +133,7 @@
 				>
 					<span class="tile-image">
 						<img src={style.image} alt="" loading={index < 6 ? 'eager' : 'lazy'} decoding="async" />
-						{#if selected === style.id}
+						{#if selected.includes(style.id)}
 							<span class="check"><Check size={12} strokeWidth={3} /></span>
 						{:else if shortlisted.includes(style.id)}
 							<span class="saved-marker"><Bookmark size={11} fill="currentColor" /></span>
@@ -159,6 +163,11 @@
 					</button>
 				{/each}
 			</div>
+			<button class="continue-shortlist" type="button" onclick={() => onSelect(shortlisted)}>
+				Continue with {shortlistedStyles.length}
+				{shortlistedStyles.length === 1 ? 'style' : 'styles'}
+				<ArrowRight size={13} />
+			</button>
 		</div>
 	{/if}
 
@@ -171,7 +180,7 @@
 		/>
 		<small
 			>{connected
-				? 'The text model combines your note with the selected visual language when it writes each prompt.'
+				? 'The text model combines your note with the chosen visual languages when it writes each prompt.'
 				: 'Demo mode uses sample prompts. Connect OpenAI to have the text model interpret this direction.'}</small
 		>
 	</label>
@@ -614,6 +623,7 @@
 	.shortlist-chips {
 		display: flex;
 		min-width: 0;
+		flex: 1;
 		gap: 6px;
 		overflow-x: auto;
 		scrollbar-width: none;
@@ -649,6 +659,28 @@
 		border-radius: 5px;
 		background-position: center;
 		background-size: cover;
+	}
+
+	.continue-shortlist {
+		display: inline-flex;
+		height: 34px;
+		flex: 0 0 auto;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		padding: 0 11px;
+		border: 1px solid var(--ink);
+		border-radius: 9px;
+		color: var(--picker-card);
+		background: var(--ink);
+		font-size: 10px;
+		font-weight: 730;
+		white-space: nowrap;
+		transition: 150ms ease;
+	}
+
+	.continue-shortlist:hover {
+		transform: translateY(-1px);
 	}
 
 	.custom-direction {
@@ -738,6 +770,18 @@
 
 		.style-grid {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.shortlist-bar {
+			flex-wrap: wrap;
+		}
+
+		.shortlist-chips {
+			flex-basis: calc(100% - 82px);
+		}
+
+		.continue-shortlist {
+			width: 100%;
 		}
 	}
 </style>
