@@ -27,6 +27,22 @@ function successfulFetch() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('GPT Image requests', () => {
+	it.each(['gpt-image-2.5-sunburst', 'gpt-image-2.5-flare'] as const)(
+		'generates with %s and preserves the custom canvas size',
+		async (model) => {
+			const fetchMock = successfulFetch();
+			vi.stubGlobal('fetch', fetchMock);
+
+			await generateImage({ ...baseInput, model, references: [] });
+
+			const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+			expect(JSON.parse(String(init.body))).toMatchObject({
+				model,
+				size: '2048x1152'
+			});
+		}
+	);
+
 	it('uses generations for a text-only prompt', async () => {
 		const fetchMock = successfulFetch();
 		vi.stubGlobal('fetch', fetchMock);

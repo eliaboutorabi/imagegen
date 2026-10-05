@@ -42,6 +42,7 @@
 		recordDiagnostic,
 		type DiagnosticRecord
 	} from '$lib/studio/diagnostics';
+	import { imageQualities, imageQualityName } from '$lib/studio/models';
 	import { runGenerationBatch } from '$lib/studio/openai';
 	import { routeComposerIntent } from '$lib/studio/routing';
 	import { getStyle } from '$lib/studio/styles';
@@ -1671,8 +1672,8 @@
 										><span>Quality</span><select
 											bind:value={batchQuality}
 											aria-label="Batch quality"
-											>{#each ['low', 'medium', 'high'] as quality (quality)}<option value={quality}
-													>{quality[0].toUpperCase() + quality.slice(1)}</option
+											>{#each imageQualities(settings.imageModel) as quality (quality)}<option
+													value={quality}>{imageQualityName(quality)}</option
 												>{/each}</select
 										></label
 									>

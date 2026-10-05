@@ -1,5 +1,6 @@
 import type { StudioProject, StudioSettings } from './types';
 import { toCloneSafe } from './clone';
+import { imageQualities, isImageModel } from './models';
 
 const SETTINGS_KEY = 'modyfi-studio-settings-v1';
 const DATABASE_NAME = 'modyfi-studio';
@@ -32,6 +33,10 @@ export function loadSettings(): StudioSettings {
 		const settings = { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } as StudioSettings;
 		if (['gpt-5.4', 'gpt-5', 'gpt-4.1'].includes(settings.plannerModel)) {
 			settings.plannerModel = DEFAULT_SETTINGS.plannerModel;
+		}
+		if (!isImageModel(settings.imageModel)) settings.imageModel = DEFAULT_SETTINGS.imageModel;
+		if (!imageQualities(settings.imageModel).includes(settings.quality)) {
+			settings.quality = 'high';
 		}
 		return settings;
 	} catch {

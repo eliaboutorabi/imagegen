@@ -9,7 +9,7 @@ test('streams live directions and progressive image frames through the browser w
 			JSON.stringify({
 				apiKey: 'local-test-credential',
 				plannerModel: 'gpt-5.6-luna',
-				imageModel: 'gpt-image-2',
+				imageModel: 'gpt-image-2.5-sunburst',
 				quality: 'medium',
 				defaultBatchSize: 4,
 				autoGenerate: true,
@@ -95,7 +95,8 @@ test('streams live directions and progressive image frames through the browser w
 	).toBeVisible();
 	await page.getByRole('textbox', { name: 'Message' }).fill('Explain how urban trees cool cities.');
 	await page.getByRole('button', { name: 'Send message' }).click();
-	await page.getByRole('button', { name: /Editorial narrative/ }).click();
+	await page.getByRole('button', { name: 'Preview Editorial narrative style' }).click();
+	await page.getByRole('button', { name: 'Use this style' }).click();
 	await page.getByRole('button', { name: 'Generate three directions' }).click();
 
 	await expect(page.getByText('Live direction studio', { exact: true })).toBeVisible();

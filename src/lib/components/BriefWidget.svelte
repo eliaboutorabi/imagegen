@@ -138,7 +138,7 @@
 
 	<div class="control-row canvas-size">
 		<div class="control-label">
-			<RectangleHorizontal size={14} /><span>GPT Image 2 canvas</span><b
+			<RectangleHorizontal size={14} /><span>GPT Image canvas</span><b
 				>{imageWidth} × {imageHeight}</b
 			>
 		</div>

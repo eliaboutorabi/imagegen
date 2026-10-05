@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Check, Eye, EyeOff, KeyRound, ShieldCheck, SlidersHorizontal, X } from '@lucide/svelte';
+	import { IMAGE_MODELS, imageQualities, imageQualityName } from '$lib/studio/models';
 	import type { StudioSettings } from '$lib/studio/types';
 
 	let {
@@ -38,6 +39,12 @@
 			saved = false;
 			onClose();
 		}, 500);
+	}
+
+	function updateImageModel(event: Event) {
+		draft.imageModel = (event.currentTarget as HTMLSelectElement)
+			.value as StudioSettings['imageModel'];
+		if (!imageQualities(draft.imageModel).includes(draft.quality)) draft.quality = 'high';
 	}
 
 	function onBackdrop(event: MouseEvent) {
@@ -91,14 +98,22 @@
 				</div>
 				<div class="field-grid">
 					<label><span>Creative director</span><input value={draft.plannerModel} disabled /></label>
-					<label><span>Image model</span><input value={draft.imageModel} disabled /></label>
+					<label
+						><span>Image model</span><select value={draft.imageModel} onchange={updateImageModel}
+							>{#each IMAGE_MODELS as model (model.id)}<option value={model.id}>{model.name}</option
+								>{/each}</select
+						></label
+					>
 				</div>
+				<p class="model-note">
+					{IMAGE_MODELS.find((model) => model.id === draft.imageModel)?.description}
+				</p>
 
 				<div class="field-grid">
 					<label
 						><span>Quality</span><select bind:value={draft.quality}
-							>{#each ['low', 'medium', 'high'] as quality (quality)}<option value={quality}
-									>{quality[0].toUpperCase() + quality.slice(1)}</option
+							>{#each imageQualities(draft.imageModel) as quality (quality)}<option value={quality}
+									>{imageQualityName(quality)}</option
 								>{/each}</select
 						></label
 					>
@@ -297,6 +312,11 @@
 		grid-template-columns: 1fr 1fr;
 		gap: 10px;
 		margin-top: 12px;
+	}
+	.model-note {
+		margin: 7px 0 0;
+		color: var(--muted);
+		font-size: 11px;
 	}
 	.toggle-row {
 		position: relative;

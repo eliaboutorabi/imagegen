@@ -18,8 +18,9 @@ export type StyleId =
 
 export type Audience = 'Everyone' | 'Executives' | 'Students' | 'Experts';
 export type Aspect = 'landscape' | 'portrait' | 'square';
-export type ImageQuality = 'low' | 'medium' | 'high';
+export type ImageQuality = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 export type ImageFormat = 'png' | 'jpeg' | 'webp';
+export type ImageModel = 'gpt-image-2.5-sunburst' | 'gpt-image-2.5-flare' | 'gpt-image-2';
 export type StudioTheme = 'light' | 'dark';
 export type GenerationStatus =
 	'queued' | 'ready' | 'generating' | 'complete' | 'error' | 'needs-key';
@@ -27,7 +28,7 @@ export type GenerationStatus =
 export interface StudioSettings {
 	apiKey: string;
 	plannerModel: string;
-	imageModel: string;
+	imageModel: ImageModel;
 	quality: ImageQuality;
 	defaultBatchSize: number;
 	autoGenerate: boolean;

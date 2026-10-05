@@ -12,6 +12,7 @@ The application is fully static and bring-your-own-key: there is no Infogen serv
 - **Live planning and rendering** — fills prompt cards as structured text arrives, then displays progressive image passes while independent image jobs run.
 - **Generative UI** — audience, information density, format, canvas size, batch size, quality, and output format are editable without rewriting the brief.
 - **Reference images** — upload source material or reuse a previous generation as a new reference.
+- **Current image models** — choose quality-first GPT Image 2.5 Sunburst, faster GPT Image 2.5 Flare, or GPT Image 2 for an existing workflow.
 - **Editable prompts** — inspect the complete prompt and revise it before generating a batch.
 - **Generation wall** — review every queued, active, completed, and failed render in a resizable timeline.
 - **Persistent canvases** — projects, prompts, references, and generated images survive refreshes in IndexedDB.
@@ -29,16 +30,16 @@ The application is fully static and bring-your-own-key: there is no Infogen serv
 
 ## Stack
 
-| Layer         | Technology                                  |
-| ------------- | ------------------------------------------- |
-| Application   | SvelteKit 2, Svelte 5, TypeScript           |
-| Styling       | Tailwind CSS 4 plus component CSS           |
-| Agent harness | Direct OpenAI Responses API streaming       |
-| Planning      | `gpt-5.6-luna` with compatible fallbacks    |
-| Images        | `gpt-image-2`                               |
-| Persistence   | `localStorage` and IndexedDB                |
-| Validation    | Zod, Vitest, Svelte Check, ESLint, Prettier |
-| Output        | Fully prerendered static site               |
+| Layer         | Technology                                    |
+| ------------- | --------------------------------------------- |
+| Application   | SvelteKit 2, Svelte 5, TypeScript             |
+| Styling       | Tailwind CSS 4 plus component CSS             |
+| Agent harness | Direct OpenAI Responses API streaming         |
+| Planning      | `gpt-5.6-luna` with compatible fallbacks      |
+| Images        | GPT Image 2.5 Sunburst, Flare, or GPT Image 2 |
+| Persistence   | `localStorage` and IndexedDB                  |
+| Validation    | Zod, Vitest, Svelte Check, ESLint, Prettier   |
+| Output        | Fully prerendered static site                 |
 
 ## Getting started
 
