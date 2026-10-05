@@ -80,6 +80,28 @@ export interface Generation {
 	model?: ImageModel;
 }
 
+export interface WebSource {
+	url: string;
+	title: string;
+}
+
+export interface WebCitation extends WebSource {
+	startIndex: number;
+	endIndex: number;
+}
+
+export interface WebSearch {
+	id: string;
+	status: 'searching' | 'complete' | 'failed';
+	queries: string[];
+	sources: WebSource[];
+}
+
+export interface ResearchTrace {
+	searches: WebSearch[];
+	citations: WebCitation[];
+}
+
 export interface StudioMessage {
 	id: string;
 	role: 'user' | 'assistant';
@@ -88,6 +110,7 @@ export interface StudioMessage {
 	conceptIds?: string[];
 	generationIds?: string[];
 	referenceIds?: string[];
+	research?: ResearchTrace;
 }
 
 export interface StudioProject {

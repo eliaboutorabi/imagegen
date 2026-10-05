@@ -4,7 +4,8 @@ import { HumanMessage, mapStoredMessagesToChatMessages } from '@langchain/core/m
 import { createDeepAgent, registerHarnessProfile } from 'deepagents/browser';
 import { z } from 'zod';
 import { getStyle } from './styles';
-import type { StudioProject, StudioSettings } from './types';
+import { createResearchTracker, researchFetch, researchSources } from './research';
+import type { ResearchTrace, StudioProject, StudioSettings } from './types';
 
 export interface ImageToolInput {
 	title: string;
@@ -25,6 +26,7 @@ export interface StudioToolHandlers {
 	selectDirection: (conceptId: string) => string;
 	activity: (label: string) => void;
 	text: (text: string) => void;
+	research: (trace: ResearchTrace) => void;
 }
 
 export const STUDIO_SYSTEM_PROMPT = `You are the creative partner inside Infogen, an image and infographic studio. Be concise, useful and perceptive. There is no mandatory wizard: choose the right tool for the user's actual intent.
@@ -36,7 +38,7 @@ WORKFLOW
 - When attached references accompany a clear edit (e.g. dark mode, change a label, alter colors), call generate_images immediately with one image by default. Preserve unmentioned content and layout. No styles, brief wizard, or variation-count question. Describe the exact requested transformation in the prompt, not an unrelated new design.
 - A precise standalone image request can use generate_images directly. Generate multiple images only when the user explicitly asks; never exceed ten images in one turn.
 - select_direction opens an editable prompt and batch controls when the user wants to inspect or vary an existing direction. Use its exact ID from context.
-- Use web_search only for facts that need verification or current information. Pass the relevant sourced research to draft_directions. Do not invent statistics, citations, or search results.
+- Use web_search when the user asks you to search or research, or when facts need verification or current information. Search before drafting fact-dependent directions, then pass a concise research summary with source URLs to draft_directions so all directions share the research. Include citations in your answer; never invent statistics, citations, or search results. Pure visual edits do not need a search.
 - If asked a question, answer it. Do not generate images just because references are attached. A reference can be discussed without being edited.
 - After displaying controls, stop and wait for the user. After starting jobs, state briefly what was queued; images render asynchronously. Never claim an image finished unless its status is complete in context.
 - Tool failures are real failures. Do not conceal them, retry image tools automatically, or invent a successful result. Ask the user before spending on a replacement.
@@ -73,6 +75,15 @@ export function canvasContext(project: StudioProject, settings: StudioSettings) 
 		density: project.density,
 		autoRender: settings.autoGenerate,
 		activePanel: project.activePanel ?? null,
+		// The adapter drops hosted-tool annotations from replayed model messages.
+		// Keep bounded source context in the application's persisted canvas instead.
+		recentResearch: (project.messages ?? [])
+			.filter((message) => message.role === 'assistant' && researchSources(message.research).length)
+			.slice(-6)
+			.map((message) => ({
+				summary: message.content.slice(0, 1800),
+				sources: researchSources(message.research).slice(0, 12)
+			})),
 		directions: project.concepts.map(({ id, title, prompt }) => ({ id, title, prompt })),
 		attachedReferences: project.referenceAssets
 			.filter((asset) => project.activeReferenceIds.includes(asset.id))
@@ -117,6 +128,13 @@ export async function runStudioAgent(
 		],
 		generalPurposeSubagent: { enabled: false }
 	});
+	const research = createResearchTracker((trace) => {
+		if (signal.aborted) return;
+		handlers.research(trace);
+		if (trace.searches.some((search) => search.status === 'searching'))
+			handlers.activity('Searching the web');
+		else if (trace.searches.length) handlers.activity('Using the research');
+	});
 	const model = new ChatOpenAI({
 		model: settings.plannerModel,
 		apiKey: settings.apiKey,
@@ -124,9 +142,9 @@ export async function runStudioAgent(
 		streaming: true,
 		maxRetries: 0,
 		timeout: 180_000,
-		modelKwargs: { store: false },
+		modelKwargs: { store: false, include: ['web_search_call.action.sources'] },
 		...(/^gpt-[56]/.test(settings.plannerModel) ? { reasoning: { effort: 'low' as const } } : {}),
-		configuration: { dangerouslyAllowBrowser: true }
+		configuration: { dangerouslyAllowBrowser: true, fetch: researchFetch(research) }
 	});
 	const gate = createToolGate(signal);
 	let reservedImages = 0;
@@ -268,5 +286,8 @@ export async function runStudioAgent(
 		}
 	}
 	const humans = stored.flatMap((item, index) => (item.type === 'human' ? [index] : []));
-	return { text: text.trim(), history: stored.slice(humans[Math.max(0, humans.length - 12)] ?? 0) };
+	return {
+		text: text.trimEnd(),
+		history: stored.slice(humans[Math.max(0, humans.length - 12)] ?? 0)
+	};
 }

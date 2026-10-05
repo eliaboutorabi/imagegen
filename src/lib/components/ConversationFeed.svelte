@@ -3,9 +3,11 @@
 	import {
 		ArrowUpRight01Icon as ArrowUpRight,
 		Image02Icon as ImageIcon,
+		Globe02Icon as Globe,
 		Loading03Icon as LoaderCircle
 	} from '@hugeicons/core-free-icons';
 	import ConceptCard from './ConceptCard.svelte';
+	import { citationSegments, researchSources } from '$lib/studio/research';
 	import type {
 		Generation,
 		InfographicConcept,
@@ -37,6 +39,7 @@
 
 <div class="conversation-feed" aria-label="Conversation">
 	{#each messages as message (message.id)}
+		{@const sources = researchSources(message.research)}
 		<article class:user={message.role === 'user'} class="message">
 			<div class="message-label">
 				{message.role === 'user'
@@ -47,6 +50,34 @@
 						class="spin"
 					/>{/if}
 			</div>
+			{#if message.research?.searches.length}
+				<div class="search-activity" aria-label="Web research" role="status">
+					{#each message.research.searches as search (search.id)}
+						{@const searching = search.status === 'searching' && message.id === activeMessageId}
+						<div class="search-row">
+							<Icon
+								icon={searching ? LoaderCircle : Globe}
+								size={15}
+								class={searching ? 'spin' : ''}
+							/>
+							<span
+								><strong
+									>{searching
+										? 'Searching the web'
+										: search.status === 'complete'
+											? 'Searched the web'
+											: search.status === 'failed'
+												? 'Search failed'
+												: 'Search interrupted'}</strong
+								>
+								{#if search.queries.length}<small title={search.queries.join(' · ')}
+										>{search.queries.join(' · ')}</small
+									>{/if}
+							</span>
+						</div>
+					{/each}
+				</div>
+			{/if}
 			{#if message.referenceIds?.length}
 				<div class="message-references">
 					{#each message.referenceIds as id (id)}
@@ -56,13 +87,37 @@
 				</div>
 			{/if}
 			{#if message.content}<p class="message-text">
-					{message.content}
+					{#each citationSegments(message.content, message.research?.citations) as segment, index (index)}{#if segment.source}<a
+								class="inline-citation"
+								href={segment.source.url}
+								title={segment.source.title}
+								target="_blank"
+								rel="external noopener noreferrer">{segment.text}</a
+							>{:else}{segment.text}{/if}{/each}
 				</p>{:else if message.id === activeMessageId}<div
 					class="thinking-dots"
 					aria-label="Thinking"
 				>
 					<i></i><i></i><i></i>
 				</div>{/if}
+			{#if sources.length}
+				<details class="research-sources">
+					<summary
+						><Icon icon={Globe} size={14} />
+						{sources.length} source{sources.length === 1 ? '' : 's'}</summary
+					>
+					<div class="source-list">
+						{#each sources as source (source.url)}
+							<a href={source.url} target="_blank" rel="external noopener noreferrer"
+								><span
+									><strong>{source.title}</strong><small>{new URL(source.url).hostname}</small
+									></span
+								><Icon icon={ArrowUpRight} size={15} /></a
+							>
+						{/each}
+					</div>
+				</details>
+			{/if}
 			{#if message.conceptIds?.length}
 				<div class="message-concepts">
 					{#each message.conceptIds as id, index (id)}
@@ -142,6 +197,88 @@
 		line-height: 1.75;
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
+	}
+	.inline-citation {
+		color: var(--accent);
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+	.search-activity {
+		display: grid;
+		gap: 10px;
+		margin-bottom: 14px;
+		color: var(--muted);
+	}
+	.search-row {
+		display: flex;
+		align-items: center;
+		gap: 9px;
+		font-size: 12px;
+	}
+	.search-row > span {
+		min-width: 0;
+	}
+	.search-row strong {
+		font-weight: 500;
+	}
+	.search-row small {
+		display: block;
+		font-size: 12px;
+		margin-top: 3px;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+	.research-sources {
+		margin-top: 14px;
+	}
+	.research-sources summary {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		width: fit-content;
+		padding: 7px 11px;
+		border-radius: 20px;
+		border: 1px solid var(--line);
+		background: var(--panel);
+		color: var(--ink-2);
+		cursor: pointer;
+		font-size: 12px;
+	}
+	.research-sources summary:hover {
+		background: var(--surface);
+	}
+	.source-list {
+		display: grid;
+		gap: 6px;
+		margin-top: 10px;
+		max-height: 260px;
+		overflow-y: auto;
+	}
+	.source-list a {
+		display: flex;
+		align-items: center;
+		gap: 16px;
+		justify-content: space-between;
+		padding: 10px 12px;
+		border: 1px solid var(--line);
+		border-radius: 10px;
+		background: var(--panel);
+		color: var(--ink-2);
+		text-decoration: none;
+	}
+	.source-list a:hover {
+		background: var(--surface);
+	}
+	.source-list strong {
+		font-size: 13px;
+		font-weight: 500;
+	}
+	.source-list small {
+		display: block;
+		margin-top: 4px;
+		color: var(--muted);
+		font-size: 12px;
 	}
 	.user {
 		align-self: flex-end;

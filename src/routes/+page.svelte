@@ -470,6 +470,13 @@
 							scrollChat();
 						}
 					},
+					research: (trace) => {
+						if (current()) {
+							const item = assistant();
+							if (item) item.research = trace;
+							scrollChat();
+						}
+					},
 					showControls: (kind, topic) => {
 						if (current()) {
 							project.topic = topic;

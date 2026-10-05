@@ -11,6 +11,7 @@ The application is fully static and bring-your-own-key: there is no Infogen serv
 - **A real creative agent** — Deep Agents 1.14.1 runs a tool-driven conversation in the browser, choosing between answering, visual controls, concept drafting, and direct image edits. No mandatory wizard.
 - **Parallel creative direction** — independent text-model calls stream distinct prompt cards and start first drafts as each complete prompt arrives.
 - **Live planning and rendering** — fills prompt cards as structured text arrives, then displays progressive image passes while independent image jobs run.
+- **Visible web research** — OpenAI's hosted Responses API search provides current facts, search activity, clickable inline citations, and a saved source list. Ask explicitly to search, or let the agent decide when verification is useful; no separate search-service key is needed.
 - **Generative UI** — audience, information density, format, canvas size, batch size, quality, and output format are editable without rewriting the brief.
 - **A focused composer** — switch text and image models in place; adjust aspect ratio, quality, file type, and automatic first drafts without leaving the conversation.
 - **Reference images** — attach, paste, or drop source material into the composer, or reuse a previous generation as a new reference. Thumbnails preserve the full image.

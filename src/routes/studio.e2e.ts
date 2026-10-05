@@ -3,6 +3,123 @@ import { readFileSync } from 'node:fs';
 
 const image = readFileSync('static/style-previews/editorial-narrative.jpg').toString('base64');
 
+function researchStream(model: string, draft = false) {
+	const text = 'Trees can reduce urban heat through shade and transpiration. [1]';
+	const url = 'https://www.epa.gov/heatislands/using-trees-and-vegetation-reduce-heat-islands';
+	const search = {
+		id: 'ws_test',
+		type: 'web_search_call',
+		status: 'completed',
+		action: {
+			type: 'search',
+			queries: ['urban trees cooling evidence'],
+			sources: [
+				{ type: 'url', url },
+				{ type: 'url', url: 'https://www.epa.gov/heatislands/heat-island-impacts' }
+			]
+		}
+	};
+	const message = {
+		id: 'msg_research',
+		type: 'message',
+		role: 'assistant',
+		status: 'completed',
+		content: [
+			{
+				type: 'output_text',
+				text,
+				annotations: [
+					{
+						type: 'url_citation',
+						start_index: text.indexOf('[1]'),
+						end_index: text.length,
+						title: 'EPA: Trees and vegetation',
+						url
+					}
+				]
+			}
+		]
+	};
+	const response = {
+		id: 'resp_research',
+		object: 'response',
+		created_at: 1,
+		model,
+		status: 'completed',
+		output: [search, message] as unknown[],
+		usage: { input_tokens: 10, output_tokens: 10, total_tokens: 20 }
+	};
+	const events: Record<string, unknown>[] = [
+		{ type: 'response.created', response: { ...response, status: 'in_progress', output: [] } },
+		{
+			type: 'response.output_item.added',
+			output_index: 0,
+			item: { ...search, status: 'in_progress', action: undefined }
+		},
+		{ type: 'response.web_search_call.in_progress', output_index: 0, item_id: search.id },
+		{ type: 'response.web_search_call.searching', output_index: 0, item_id: search.id },
+		{ type: 'response.web_search_call.completed', output_index: 0, item_id: search.id },
+		{ type: 'response.output_item.done', output_index: 0, item: search },
+		{ type: 'response.output_item.added', output_index: 1, item: { ...message, content: [] } },
+		{
+			type: 'response.output_text.delta',
+			output_index: 1,
+			content_index: 0,
+			item_id: message.id,
+			delta: text
+		},
+		{
+			type: 'response.output_text.annotation.added',
+			output_index: 1,
+			content_index: 0,
+			item_id: message.id,
+			annotation_index: 0,
+			annotation: message.content[0].annotations[0]
+		},
+		{
+			type: 'response.output_text.done',
+			output_index: 1,
+			content_index: 0,
+			item_id: message.id,
+			text
+		},
+		{ type: 'response.output_item.done', output_index: 1, item: message }
+	];
+	if (draft) {
+		const call = {
+			type: 'function_call',
+			id: 'fc_researched',
+			call_id: 'call_researched',
+			status: 'completed',
+			name: 'draft_directions',
+			arguments: JSON.stringify({
+				topic: 'How urban trees cool cities',
+				count: 3,
+				instructions: 'Use the researched evidence',
+				research: `Trees reduce heat through shade and transpiration. Source: ${url}`
+			})
+		};
+		response.output.push(call);
+		events.push(
+			{ type: 'response.output_item.added', output_index: 2, item: { ...call, arguments: '' } },
+			{
+				type: 'response.function_call_arguments.delta',
+				output_index: 2,
+				item_id: call.id,
+				delta: call.arguments
+			},
+			{ type: 'response.output_item.done', output_index: 2, item: call }
+		);
+	}
+	events.push({ type: 'response.completed', response });
+	return events
+		.map(
+			(event, index) =>
+				`event: ${event.type}\ndata: ${JSON.stringify({ sequence_number: index, ...event })}\n\n`
+		)
+		.join('');
+}
+
 function responseStream(output: Record<string, unknown>, model: string) {
 	const response = {
 		id: `resp_${Math.random().toString(36).slice(2)}`,
@@ -148,6 +265,13 @@ async function mockStudio(page: Page, theme = 'light') {
 				typeof user?.content === 'string'
 					? user.content
 					: user?.content?.map((block) => block.text || '').join(' ') || '';
+			if (text.includes('Search the web') || text.includes('Research before drafting')) {
+				await route.fulfill({
+					contentType: 'text/event-stream',
+					body: researchStream(data.model, text.includes('Research before drafting'))
+				});
+				return;
+			}
 			let name = 'show_style_picker';
 			let args: Record<string, unknown> = { topic: 'How urban trees cool cities' };
 			if (text.includes('One direct image')) {
@@ -239,6 +363,7 @@ test('browser harness streams directions, renders, edits references and preserve
 	await expect(page.getByRole('heading', { name: 'Choose a visual language' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Send message' })).toBeVisible();
 	const modelTools = JSON.parse(requests[0].body).tools as Array<{ type: string; name?: string }>;
+	expect(modelTools).toContainEqual({ type: 'web_search' });
 	expect(
 		modelTools
 			.filter((tool) => tool.type === 'function')
@@ -308,6 +433,68 @@ test('browser harness streams directions, renders, edits references and preserve
 	expect(continued.some((item) => item.type === 'function_call_output')).toBe(true);
 	expect(requests.filter((item) => item.url.includes('/images/'))).toHaveLength(4);
 	expect(errors).toEqual([]);
+});
+
+test('hosted web search is enabled, citations are clickable and research survives reloads', async ({
+	page
+}) => {
+	const requests = await mockStudio(page);
+	await page.goto('/');
+	await page
+		.getByRole('textbox', { name: 'Message', exact: true })
+		.fill('Search the web for evidence about urban tree cooling. Answer only.');
+	await page.getByRole('button', { name: 'Send message' }).click();
+	await expect(page.getByText('Searched the web', { exact: true })).toBeVisible();
+	await expect(page.getByText('urban trees cooling evidence', { exact: true })).toBeVisible();
+	const citation = page.locator('.inline-citation');
+	await expect(citation).toHaveText('[1]');
+	await expect(citation).toHaveAttribute(
+		'href',
+		'https://www.epa.gov/heatislands/using-trees-and-vegetation-reduce-heat-islands'
+	);
+	await expect(citation).toHaveAttribute('rel', 'external noopener noreferrer');
+	await page.getByText('2 sources', { exact: true }).click();
+	await expect(page.getByRole('link', { name: /EPA: Trees and vegetation/ })).toBeVisible();
+	await page.screenshot({ path: '/tmp/infogen-web-research.png' });
+	const request = JSON.parse(requests[0].body);
+	expect(request.tools).toContainEqual({ type: 'web_search' });
+	expect(request.include).toContain('web_search_call.action.sources');
+	expect(requests.filter((request) => request.url.includes('/images/'))).toHaveLength(0);
+	await expect(page.getByRole('button', { name: 'Send message' })).toBeVisible();
+	await page.reload();
+	await expect(citation).toHaveText('[1]');
+	await expect(page.getByText('Searched the web', { exact: true })).toBeVisible();
+	await page
+		.getByRole('textbox', { name: 'Message', exact: true })
+		.fill('Discuss only: summarize what you found.');
+	await page.getByRole('button', { name: 'Send message' }).click();
+	await expect(page.getByRole('button', { name: 'Send message' })).toBeVisible();
+	expect(requests.at(-1)?.body).toContain('https://www.epa.gov/heatislands');
+});
+
+test('sourced research reaches all parallel direction prompts', async ({ page }) => {
+	const requests = await mockStudio(page);
+	await page.goto('/');
+	await page
+		.getByRole('textbox', { name: 'Message', exact: true })
+		.fill('Research before drafting three urban tree infographic concepts.');
+	await page.getByRole('button', { name: 'Send message' }).click();
+	await expect(page.getByRole('heading', { name: 'Urban direction 3', exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Send message' })).toBeVisible();
+	const directionRequests = requests
+		.filter((request) => request.url.includes('/responses'))
+		.map((request) => JSON.parse(request.body))
+		.filter((body) => body.text?.format?.type === 'json_schema');
+	expect(directionRequests).toHaveLength(3);
+	for (const request of directionRequests) {
+		expect(request.input).toContain('Trees reduce heat through shade and transpiration.');
+		expect(request.input).toContain(
+			'https://www.epa.gov/heatislands/using-trees-and-vegetation-reduce-heat-islands'
+		);
+		// Research is shared by the drafts, not paid for again in each branch.
+		expect(request.tools).toBeUndefined();
+	}
+	await expect(page.locator('.inline-citation')).toHaveCount(1);
 });
 
 test('stopping a model run does not accept a late reply or start image jobs', async ({ page }) => {
