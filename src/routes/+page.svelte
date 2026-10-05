@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { base } from '$app/paths';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import {
 		ArrowDownToLine,
 		ArrowRight,
@@ -21,9 +23,9 @@
 		PanelLeftClose,
 		Plus,
 		RotateCcw,
-		Search,
 		Settings2,
 		Sparkles,
+		Square,
 		Sun,
 		Trash2,
 		X,
@@ -32,11 +34,12 @@
 	} from '@lucide/svelte';
 	import BrandMark from '$lib/components/BrandMark.svelte';
 	import BriefWidget from '$lib/components/BriefWidget.svelte';
-	import ConceptCard from '$lib/components/ConceptCard.svelte';
+	import ConversationFeed from '$lib/components/ConversationFeed.svelte';
 	import GenerationWall from '$lib/components/GenerationWall.svelte';
 	import SettingsPanel from '$lib/components/SettingsPanel.svelte';
 	import StylePicker from '$lib/components/StylePicker.svelte';
 	import { planInfographics } from '$lib/studio/agent';
+	import { referenceCanvas } from '$lib/studio/canvas';
 	import {
 		formatDiagnostic,
 		recordDiagnostic,
@@ -44,7 +47,7 @@
 	} from '$lib/studio/diagnostics';
 	import { imageQualities, imageQualityName } from '$lib/studio/models';
 	import { runGenerationBatch } from '$lib/studio/openai';
-	import { routeComposerIntent } from '$lib/studio/routing';
+	import type { ImageToolInput } from '$lib/studio/runtime';
 	import { getStyle } from '$lib/studio/styles';
 	import {
 		activateProject,
@@ -108,7 +111,9 @@
 			referenceAssets: [],
 			activeReferenceIds: [],
 			createdAt: now,
-			updatedAt: now
+			updatedAt: now,
+			messages: [],
+			activePanel: null
 		};
 	}
 
@@ -127,7 +132,6 @@
 	let agentDiagnostic = $state<DiagnosticRecord | null>(null);
 	let errorExpanded = $state(false);
 	let diagnosticCopied = $state(false);
-	let planIntro = $state('');
 	let batchSize = $state(4);
 	let openGeneration = $state<Generation | null>(null);
 	let pendingConcept = $state<InfographicConcept | null>(null);
@@ -168,6 +172,14 @@
 	let lightboxAnimationFrame = 0;
 	let attachmentInput: HTMLInputElement;
 	let lightboxStage = $state<HTMLDivElement>();
+	let agentBusy = $state(false);
+	let followChat = $state(true);
+	let lastAgentRequest = $state('');
+	let streamingErrors = $state<Record<number, string>>({});
+	let agentController: AbortController | null = null;
+	const generationControllers = new SvelteMap<string, SvelteSet<AbortController>>();
+	const deletedCanvasIds = new SvelteSet<string>();
+	let activeAssistantId = $state<string | null>(null);
 
 	let selectedConcept = $derived(
 		project.concepts.find((concept) => concept.id === project.selectedConceptId) ?? null
@@ -211,7 +223,10 @@
 	);
 
 	onMount(async () => {
+		sidebarOpen = window.matchMedia('(min-width: 1180px)').matches;
+		wallOpen = window.matchMedia('(min-width: 1000px)').matches;
 		settings = loadSettings();
+		clampWallWidth();
 		applyTheme(settings.theme);
 		batchSize = settings.defaultBatchSize;
 		batchQuality = settings.quality;
@@ -222,10 +237,29 @@
 			await saveProject($state.snapshot(project));
 		}
 		recentProjects = await listProjects();
+		// An interrupted paid request must never be silently replayed on reload.
+		for (const canvas of recentProjects) {
+			let changed = false;
+			for (const generation of canvas.generations) {
+				if (generation.status === 'queued' || generation.status === 'generating') {
+					generation.status = 'error';
+					generation.error =
+						'Interrupted when the app closed. Check your OpenAI usage before retrying.';
+					changed = true;
+				}
+			}
+			if (changed) {
+				await saveProject(canvas, false);
+				if (canvas.id === project.id) applyLoadedProject(canvas);
+			}
+		}
 		hydrated = true;
 	});
+	onMount(() => () => agentController?.abort());
 
 	function stepForProject(value: StudioProject): Step {
+		if (value.activePanel !== undefined)
+			return value.activePanel ?? (value.concepts.length ? 'concepts' : 'topic');
 		return value.concepts?.length
 			? 'concepts'
 			: value.styleIds?.length || value.styleId
@@ -248,23 +282,55 @@
 			notes: value.notes ?? [],
 			styleIds: value.styleIds?.length ? value.styleIds : value.styleId ? [value.styleId] : [],
 			referenceAssets: restoredReferences,
-			activeReferenceIds: value.activeReferenceIds ?? []
+			activeReferenceIds: value.activeReferenceIds ?? [],
+			messages:
+				value.messages ??
+				(value.topic
+					? [
+							{
+								id: crypto.randomUUID(),
+								role: 'user',
+								content: value.topic,
+								createdAt: value.createdAt
+							},
+							...(value.concepts.length
+								? [
+										{
+											id: crypto.randomUUID(),
+											role: 'assistant' as const,
+											content: 'Your saved creative directions.',
+											conceptIds: value.concepts.map((concept) => concept.id),
+											createdAt: value.updatedAt
+										}
+									]
+								: [])
+						]
+					: [])
 		};
+		for (const message of project.messages ?? []) {
+			if (
+				message.role === 'assistant' &&
+				!message.content &&
+				!message.conceptIds?.length &&
+				!message.generationIds?.length
+			)
+				message.content = 'This response was interrupted. Send a message to continue.';
+		}
 		batchPrompt =
 			project.concepts.find((concept) => concept.id === project.selectedConceptId)?.prompt ?? '';
 		batchQuality = settings.quality;
 		batchFormat = 'webp';
 		step = stepForProject(project);
-		planIntro = '';
 		agentError = '';
 		openPrompt = null;
 		pendingReferenceEdit = null;
-		wallOpen = false;
+		wallOpen = window.innerWidth >= 1000;
+		openGeneration = null;
 		partialImages = {};
 	}
 
 	function persist() {
-		if (!hydrated) return;
+		if (!hydrated || deletedCanvasIds.has(project.id)) return;
 		project.updatedAt = Date.now();
 		const snapshot = $state.snapshot(project);
 		recentProjects = [snapshot, ...recentProjects.filter((item) => item.id !== snapshot.id)].sort(
@@ -274,26 +340,28 @@
 	}
 
 	async function openProject(id: string) {
+		stopAgent();
 		const saved = await activateProject(id);
 		if (!saved) return;
 		applyLoadedProject(saved);
-		sidebarOpen = false;
+		if (window.innerWidth < 1180) sidebarOpen = false;
 		projectMenuOpen = false;
 	}
 
 	async function startNewCanvas() {
+		stopAgent();
+		persist();
 		const next = newProject();
 		project = next;
 		step = 'topic';
-		planIntro = '';
 		agentError = '';
 		agentDiagnostic = null;
 		streamingConcepts = [null, null, null];
 		streamingPartials = [{}, {}, {}];
 		partialImages = {};
-		sidebarOpen = false;
+		if (window.innerWidth < 1180) sidebarOpen = false;
 		projectMenuOpen = false;
-		wallOpen = false;
+		wallOpen = window.innerWidth >= 1000;
 		pendingReferenceEdit = null;
 		await saveProject($state.snapshot(next));
 		recentProjects = [next, ...recentProjects.filter((item) => item.id !== next.id)];
@@ -301,47 +369,215 @@
 
 	function submitComposer() {
 		const message = composerText.trim();
-		if (!message) return;
+		if (!message || agentBusy) return;
 		composerText = '';
-		const intent = routeComposerIntent({
-			stage: step,
-			activeReferenceCount: activeReferences.length
-		});
-
-		if (intent === 'edit-reference') {
-			prepareReferenceEdit(message);
-			return;
-		}
-
-		if (intent === 'start-topic') {
+		if (!settings.apiKey) {
+			if (activeReferences.length) {
+				prepareReferenceEdit(message);
+				return;
+			}
+			project.messages ??= [];
+			project.messages.push({
+				id: crypto.randomUUID(),
+				role: 'user',
+				content: message,
+				createdAt: Date.now()
+			});
 			project.topic = message;
 			step = 'style';
+			project.activePanel = 'style';
 			persist();
 			return;
 		}
+		void runAgent(message);
+	}
 
-		if (intent === 'refine-concepts') {
-			project.notes.push(message);
-			persist();
-			void createConcepts(message);
-			return;
-		}
+	function scrollChat(force = false) {
+		if (!force && (!followChat || step === 'style' || step === 'brief')) return;
+		requestAnimationFrame(() => {
+			const scroll = document.querySelector('.conversation-scroll');
+			scroll?.scrollTo({ top: scroll.scrollHeight, behavior: force ? 'smooth' : 'auto' });
+		});
+	}
 
-		project.topic = message;
-		project.styleId = null;
-		project.styleIds = [];
-		project.concepts = [];
-		step = 'style';
+	function stopAgent() {
+		const message = project.messages?.find((item) => item.id === activeAssistantId);
+		if (agentBusy && message)
+			message.content = `${message.content}${message.content ? '\n' : ''}Stopped. Any image jobs already queued are still visible in the wall.`;
+		agentController?.abort(new DOMException('Stopped by user', 'AbortError'));
+		agentController = null;
+		agentBusy = false;
+		activeAssistantId = null;
+		if (step === 'planning')
+			step = project.concepts.length ? 'concepts' : projectStyles.length ? 'brief' : 'topic';
 		persist();
+	}
+
+	function stopGenerations() {
+		for (const controller of generationControllers.get(project.id) ?? []) controller.abort();
+	}
+
+	async function runAgent(message: string) {
+		if (agentBusy) return;
+		const controller = new AbortController();
+		agentController = controller;
+		agentBusy = true;
+		lastAgentRequest = message;
+		agentStatus = 'Understanding your request';
+		agentError = '';
+		agentDiagnostic = null;
+		const ownerId = project.id;
+		const context = $state.snapshot(project);
+		project.messages ??= [];
+		project.messages.push({
+			id: crypto.randomUUID(),
+			role: 'user',
+			content: message,
+			referenceIds: [...project.activeReferenceIds],
+			createdAt: Date.now()
+		});
+		const assistantId = crypto.randomUUID();
+		activeAssistantId = assistantId;
+		project.messages.push({
+			id: assistantId,
+			role: 'assistant',
+			content: '',
+			createdAt: Date.now()
+		});
+		if (!project.topic) project.topic = message;
+		persist();
+		followChat = true;
+		scrollChat(true);
+		const current = () =>
+			project.id === ownerId && agentController === controller && !controller.signal.aborted;
+		const assistant = () => project.messages?.find((item) => item.id === assistantId);
+		try {
+			const { runStudioAgent } = await import('$lib/studio/runtime');
+			controller.signal.throwIfAborted();
+			const result = await runStudioAgent(
+				context,
+				$state.snapshot(settings),
+				message,
+				{
+					activity: (label) => {
+						if (current()) agentStatus = label;
+					},
+					text: (text) => {
+						if (current()) {
+							const item = assistant();
+							if (item) item.content = text;
+							scrollChat();
+						}
+					},
+					showControls: (kind, topic) => {
+						if (current()) {
+							project.topic = topic;
+							step = kind;
+							project.activePanel = kind;
+							persist();
+							requestAnimationFrame(() =>
+								document
+									.querySelector('.widget-indent')
+									?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+							);
+						}
+					},
+					draftDirections: async (input) => {
+						controller.signal.throwIfAborted();
+						if (!current()) throw new Error('This canvas is no longer active.');
+						return createConcepts(
+							input.instructions,
+							input.count,
+							input.research,
+							controller.signal,
+							input.topic
+						);
+					},
+					generateImages: (input) => {
+						if (!current()) throw new Error('This canvas is no longer active.');
+						return queueAgentImages(input);
+					},
+					selectDirection: (id) => {
+						if (!current()) throw new Error('This canvas is no longer active.');
+						const concept = project.concepts.find((item) => item.id === id);
+						if (!concept) throw new Error('That direction is not available.');
+						selectConcept(concept);
+						step = 'concepts';
+						return 'Editable prompt and batch controls opened.';
+					}
+				},
+				controller.signal
+			);
+			if (!current()) return;
+			project.agentHistory = result.history;
+			const item = assistant();
+			if (item)
+				item.content =
+					result.text ||
+					(item.generationIds?.length
+						? 'Your images are queued in the generation wall.'
+						: item.conceptIds?.length
+							? 'Your directions are ready to explore.'
+							: 'Ready for your next idea.');
+			if (step === 'topic') step = project.concepts.length ? 'concepts' : 'topic';
+		} catch (error) {
+			if (!current()) return;
+			agentDiagnostic = recordDiagnostic('studio-agent', error, { model: settings.plannerModel });
+			agentError =
+				error instanceof Error ? error.message : 'The agent could not finish this request.';
+			const item = assistant();
+			if (item && !item.content)
+				item.content = 'I couldn’t finish this request. See the error details below.';
+			if (step === 'planning') step = project.concepts.length ? 'concepts' : 'brief';
+		} finally {
+			if (project.id === ownerId && agentController === controller) {
+				agentBusy = false;
+				agentController = null;
+				activeAssistantId = null;
+				persist();
+			}
+		}
+	}
+
+	function queueAgentImages(input: ImageToolInput) {
+		project.activePanel = null;
+		step = project.concepts.length ? 'concepts' : 'topic';
+		const concept: InfographicConcept = {
+			id: crypto.randomUUID(),
+			title: input.title,
+			prompt: input.prompt,
+			strapline: 'Created from your request',
+			rationale: '',
+			layout: 'Direct generation',
+			palette: []
+		};
+		const primary = project.referenceAssets.find((asset) => input.referenceIds.includes(asset.id));
+		const size = primary ? referenceCanvas(primary.width, primary.height) : null;
+		if (size?.letterboxed)
+			concept.prompt +=
+				'\nPreserve the entire reference without cropping. Letterbox extreme proportions within the supported canvas.';
+		const jobs = Array.from({ length: input.count }, (_, index) => ({
+			...makeGeneration(concept, index + 1, input.count),
+			referenceIds: input.referenceIds,
+			...(size ? { width: size.width, height: size.height } : {})
+		}));
+		project.generations = [...jobs, ...project.generations];
+		const assistant = project.messages?.find((item) => item.id === activeAssistantId);
+		if (assistant)
+			assistant.generationIds = [...(assistant.generationIds ?? []), ...jobs.map((job) => job.id)];
+		persist();
+		void generateJobs(jobs);
+		return JSON.stringify({
+			queued: jobs.map((job) => ({ id: job.id, title: job.conceptTitle })),
+			status: 'queued, rendering asynchronously'
+		});
 	}
 
 	function prepareReferenceEdit(instruction: string) {
 		const request = { instruction, referenceIds: [...project.activeReferenceIds] };
 		pendingReferenceEdit = request;
-		project.notes.push(instruction);
 		persist();
-		if (settings.apiKey) void createReferenceEdit(request);
-		else settingsOpen = true;
+		settingsOpen = true;
 	}
 
 	function useStarter(topic: string) {
@@ -354,15 +590,26 @@
 		if (!chosen.length) return;
 		project.styleIds = chosen;
 		project.styleId = chosen[0];
+		project.activePanel = null;
 		persist();
-		setTimeout(() => {
-			if (step === 'style') step = 'brief';
-		}, 220);
+		if (settings.apiKey)
+			void runAgent(
+				`I approved these visual styles: ${chosen.map((id) => getStyle(id).name).join(', ')}. Use all of them. Help me set the brief or create the directions if you have enough context.`
+			);
+		else {
+			step = 'brief';
+			project.activePanel = 'brief';
+			persist();
+		}
 	}
 
 	function handleAgentEvent(event: AgentEvent) {
+		if (event.type === 'direction-error') {
+			streamingErrors[event.index - 1] = event.message;
+			return;
+		}
 		if (event.type === 'direction-start') {
-			agentStatus = 'Developing three directions';
+			agentStatus = `Developing ${streamingConcepts.length} directions`;
 			agentDetail = `${event.label} is arriving from ${event.model}`;
 			return;
 		}
@@ -370,15 +617,25 @@
 			streamingPartials[event.index - 1] = event.partial;
 			agentStatus = 'Directions are arriving live';
 			const ready = streamingConcepts.filter(Boolean).length;
-			agentDetail = `${ready} of 3 complete · prompts are streaming now`;
+			agentDetail = `${ready} of ${streamingConcepts.length} complete · prompts are streaming now`;
 			return;
 		}
 		if (event.type === 'direction-ready') {
 			streamingConcepts[event.index - 1] = event.concept;
 			streamingPartials[event.index - 1] = event.concept;
 			const ready = streamingConcepts.filter(Boolean).length;
-			agentStatus = ready === 3 ? 'Three directions ready' : 'Publishing directions as they finish';
-			agentDetail = `${ready} of 3 complete · ${event.model}`;
+			agentStatus = 'Publishing directions as they finish';
+			agentDetail = `${ready} of ${streamingConcepts.length} complete · ${event.model}`;
+			project.concepts.push(event.concept);
+			const assistant = project.messages?.find((item) => item.id === activeAssistantId);
+			if (assistant) assistant.conceptIds = [...(assistant.conceptIds ?? []), event.concept.id];
+			if (settings.apiKey && settings.autoGenerate) {
+				const job = makeGeneration(event.concept, 1, 1);
+				project.generations = [job, ...project.generations];
+				void generateJobs([job]);
+			}
+			persist();
+			scrollChat();
 			return;
 		}
 		if (event.type === 'drafting') {
@@ -399,52 +656,70 @@
 		}
 	}
 
-	async function createConcepts(refinement?: string) {
-		if (!projectStyles.length) return;
+	async function createConcepts(
+		refinement?: string,
+		count = 3,
+		research = '',
+		signal?: AbortSignal,
+		topic?: string
+	) {
 		step = 'planning';
+		project.activePanel = null;
 		agentError = '';
 		agentDiagnostic = null;
 		errorExpanded = false;
 		agentStatus = refinement ? 'Reworking the directions' : 'Reading the brief';
 		agentDetail = 'Deciding whether fresh research will improve the result';
-		streamingConcepts = [null, null, null];
-		streamingPartials = [{}, {}, {}];
+		streamingConcepts = Array.from({ length: count }, () => null);
+		streamingPartials = Array.from({ length: count }, () => ({}));
+		streamingErrors = {};
+		const ownerId = project.id;
 
 		try {
 			const direction = project.customDirection.trim();
 			const plan = await planInfographics(
 				{
-					topic: refinement
-						? `${project.topic}\nAdditional direction: ${refinement}`
-						: project.topic,
+					topic:
+						topic ||
+						(refinement ? `${project.topic}\nAdditional direction: ${refinement}` : project.topic),
 					styleIds: projectStyles.map((style) => style.id),
 					styleLabels: projectStyles.map((style) => style.name),
-					customDirection: direction || undefined,
+					customDirection: [direction, refinement].filter(Boolean).join('\n') || undefined,
 					audience: project.audience,
 					aspect: project.aspect,
 					imageWidth: project.imageWidth,
 					imageHeight: project.imageHeight,
 					density: project.density,
-					count: 3,
-					plannerModel: settings.plannerModel
+					count,
+					plannerModel: settings.plannerModel,
+					researchContext: research
 				},
 				settings.apiKey,
-				handleAgentEvent
+				(event) => {
+					if (project.id === ownerId && !signal?.aborted) handleAgentEvent(event);
+				},
+				signal
 			);
 
-			planIntro = plan.intro;
-			project.concepts = plan.concepts;
+			if (signal?.aborted || project.id !== ownerId)
+				throw new DOMException('Stopped', 'AbortError');
+			for (const concept of plan.concepts)
+				if (!project.concepts.some((item) => item.id === concept.id))
+					project.concepts.push(concept);
 			project.plannerModelUsed = plan.modelUsed ?? undefined;
 			project.selectedConceptId = null;
 			step = 'concepts';
 
-			const initialJobs =
-				settings.apiKey && settings.autoGenerate
-					? plan.concepts.map((concept, index) =>
-							makeGeneration(concept, 1, 1, Date.now() + index, true)
-						)
-					: [];
-			if (initialJobs.length) project.generations = [...initialJobs, ...project.generations];
+			if (!settings.apiKey) {
+				project.messages ??= [];
+				project.messages.push({
+					id: crypto.randomUUID(),
+					role: 'assistant',
+					content: plan.intro,
+					conceptIds: plan.concepts.map((item) => item.id),
+					createdAt: Date.now()
+				});
+			}
 			persist();
 			setTimeout(
 				() =>
@@ -454,8 +729,13 @@
 				80
 			);
 
-			if (initialJobs.length) void generateJobs(initialJobs);
+			return JSON.stringify({
+				directionIds: plan.concepts.map((item) => item.id),
+				autoRender: settings.autoGenerate,
+				warnings: plan.warnings
+			});
 		} catch (error) {
+			if (signal?.aborted || project.id !== ownerId) throw error;
 			agentDiagnostic = recordDiagnostic('concept-planning', error, {
 				plannerModel: settings.plannerModel,
 				workflowStage: agentStatus || 'unknown',
@@ -464,6 +744,8 @@
 			agentError =
 				error instanceof Error ? error.message : 'The creative director could not finish the plan.';
 			step = 'brief';
+			if (signal) throw error;
+			return 'Direction planning failed.';
 		}
 	}
 
@@ -491,7 +773,8 @@
 			height: project.imageHeight,
 			referenceIds: [...project.activeReferenceIds],
 			quality,
-			outputFormat
+			outputFormat,
+			model: settings.imageModel
 		};
 	}
 
@@ -513,6 +796,11 @@
 	}
 
 	async function generateJobs(jobs: Generation[]) {
+		const ownerId = project.id;
+		const controller = new AbortController();
+		const controllers = generationControllers.get(ownerId) ?? new SvelteSet<AbortController>();
+		controllers.add(controller);
+		generationControllers.set(ownerId, controllers);
 		wallOpen = true;
 		for (const job of jobs) clearPartialImage(job.id);
 		requestAnimationFrame(() =>
@@ -529,15 +817,30 @@
 				height: project.imageHeight,
 				references: project.referenceAssets,
 				outputFormat: 'webp',
+				signal: controller.signal,
 				onPartial: (generation, imageUrl, index) => {
+					if (project.id !== ownerId || deletedCanvasIds.has(ownerId)) return;
 					partialImages = {
 						...partialImages,
 						[generation.id]: { imageUrl, index }
 					};
 				}
 			},
-			updateGeneration
+			(generation) => {
+				if (deletedCanvasIds.has(ownerId)) return;
+				if (project.id === ownerId) updateGeneration(generation);
+				else {
+					const canvas = recentProjects.find((item) => item.id === ownerId);
+					if (!canvas) return;
+					canvas.generations = canvas.generations.map((item) =>
+						item.id === generation.id ? generation : item
+					);
+					void saveProject($state.snapshot(canvas), false);
+				}
+			}
 		);
+		controllers.delete(controller);
+		if (!controllers.size) generationControllers.delete(ownerId);
 	}
 
 	function selectConcept(concept: InfographicConcept) {
@@ -553,17 +856,6 @@
 					.querySelector('.batch-widget')
 					?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
 			80
-		);
-	}
-
-	function conceptThumbnail(conceptId: string) {
-		return (
-			project.generations.find(
-				(generation) =>
-					generation.conceptId === conceptId &&
-					generation.status === 'complete' &&
-					Boolean(generation.imageUrl)
-			) ?? null
 		);
 	}
 
@@ -602,52 +894,10 @@
 			)
 		);
 		project.generations = [...jobs, ...project.generations];
+		project.selectedConceptId = null;
 		persist();
 		wallOpen = true;
 		void generateJobs(jobs);
-	}
-
-	async function createReferenceEdit(request: PendingReferenceEdit) {
-		const prompt = request.instruction.trim();
-		if (!prompt || !request.referenceIds.length) return;
-		if (!settings.apiKey) {
-			pendingReferenceEdit = request;
-			settingsOpen = true;
-			return;
-		}
-
-		const concept: InfographicConcept = {
-			id: crypto.randomUUID(),
-			title: 'Reference edit',
-			strapline: prompt,
-			prompt,
-			rationale: 'Direct transformation of the attached reference image.',
-			layout: 'Reference-guided edit',
-			palette: []
-		};
-		const primaryReference = project.referenceAssets.find((asset) =>
-			request.referenceIds.includes(asset.id)
-		);
-		const job: Generation = {
-			...makeGeneration(concept, 1, 1, Date.now(), true, prompt, settings.quality, 'webp'),
-			referenceIds: [...request.referenceIds],
-			width: primaryReference?.width ?? project.imageWidth,
-			height: primaryReference?.height ?? project.imageHeight,
-			aspect: primaryReference
-				? primaryReference.width === primaryReference.height
-					? ('square' as const)
-					: primaryReference.width > primaryReference.height
-						? ('landscape' as const)
-						: ('portrait' as const)
-				: project.aspect
-		};
-
-		project.generations = [job, ...project.generations];
-		pendingReferenceEdit = null;
-		persist();
-		wallOpen = true;
-		showAttachmentMessage('Reference edit started — it is now at the top of the generation wall.');
-		await generateJobs([job]);
 	}
 
 	function retryGeneration(generation: Generation) {
@@ -1079,6 +1329,7 @@
 
 	function updateSettings(next: StudioSettings) {
 		settings = next;
+		clampWallWidth();
 		applyTheme(next.theme);
 		batchSize = next.defaultBatchSize;
 		saveSettings($state.snapshot(settings));
@@ -1089,12 +1340,19 @@
 		}
 		if (pendingReferenceEdit && next.apiKey) {
 			const request = pendingReferenceEdit;
-			setTimeout(() => void createReferenceEdit(request), 650);
+			pendingReferenceEdit = null;
+			project.activeReferenceIds = request.referenceIds.filter((id) =>
+				project.referenceAssets.some((asset) => asset.id === id)
+			);
+			void runAgent(request.instruction);
 		}
 	}
 
 	async function resetStudio() {
 		const deletedId = project.id;
+		deletedCanvasIds.add(deletedId);
+		stopAgent();
+		stopGenerations();
 		await clearProject(deletedId);
 		const remaining = (await listProjects()).filter((item) => item.id !== deletedId);
 		resetArmed = false;
@@ -1149,6 +1407,11 @@
 		project.density = value;
 		persist();
 	}
+	function openControls(kind: 'style' | 'brief') {
+		step = kind;
+		project.activePanel = kind;
+		persist();
+	}
 
 	async function copyDiagnostic() {
 		if (!agentDiagnosticText) return;
@@ -1187,10 +1450,26 @@
 
 	function resizeWall(event: PointerEvent) {
 		if (!resizingWall) return;
-		const maxWidth = Math.min(760, window.innerWidth * 0.58);
+		const maxWidth = maxWallWidth();
 		settings.generationWallWidth = Math.round(
 			Math.min(maxWidth, Math.max(320, window.innerWidth - event.clientX))
 		);
+	}
+	function maxWallWidth() {
+		return Math.max(
+			320,
+			Math.min(760, window.innerWidth - (sidebarOpen && window.innerWidth >= 1180 ? 236 : 0) - 440)
+		);
+	}
+	function clampWallWidth() {
+		settings.generationWallWidth = Math.min(
+			maxWallWidth(),
+			Math.max(320, settings.generationWallWidth)
+		);
+	}
+	function handleWindowResize() {
+		clampWallWidth();
+		fitLightboxImage();
 	}
 
 	function stopWallResize() {
@@ -1204,7 +1483,7 @@
 		event.preventDefault();
 		const delta = event.key === 'ArrowLeft' ? 24 : -24;
 		settings.generationWallWidth = Math.min(
-			760,
+			maxWallWidth(),
 			Math.max(320, settings.generationWallWidth + delta)
 		);
 		saveSettings($state.snapshot(settings));
@@ -1213,7 +1492,7 @@
 
 <svelte:window
 	onkeydown={handleWindowKeydown}
-	onresize={fitLightboxImage}
+	onresize={handleWindowResize}
 	onpointermove={resizeWall}
 	onpointerup={stopWallResize}
 />
@@ -1226,7 +1505,7 @@
 	/>
 </svelte:head>
 
-<div class="studio-shell">
+<div class:sidebar-visible={sidebarOpen} class="studio-shell">
 	{#if sidebarOpen}
 		<button
 			class="sidebar-backdrop"
@@ -1255,11 +1534,17 @@
 			<span>Canvas history</span>
 			<div class="canvas-history">
 				{#each recentProjects as canvas (canvas.id)}
+					{@const preview = canvas.generations.find((item) => item.imageUrl)}
 					<button
 						class:active={canvas.id === project.id}
 						type="button"
 						onclick={() => openProject(canvas.id)}
-						><Home size={15} />
+					>
+						{#if preview?.imageUrl}<img
+								class="history-preview"
+								src={preview.imageUrl}
+								alt=""
+							/>{:else}<Home size={17} />{/if}
 						<div>
 							<strong>{canvas.topic || 'Untitled infographic'}</strong><small
 								>{canvas.concepts.length} directions · {canvas.generations.length} renders</small
@@ -1272,7 +1557,7 @@
 				type="button"
 				onclick={() => {
 					wallOpen = true;
-					sidebarOpen = false;
+					if (window.innerWidth < 1180) sidebarOpen = false;
 				}}
 				><GalleryHorizontalEnd size={15} />
 				<div><strong>Generation wall</strong><small>Review every render</small></div></button
@@ -1292,7 +1577,7 @@
 			type="button"
 			onclick={() => {
 				settingsOpen = true;
-				sidebarOpen = false;
+				if (window.innerWidth < 1180) sidebarOpen = false;
 			}}><Settings2 size={15} /> Studio settings</button
 		>
 		<button
@@ -1309,10 +1594,14 @@
 			<button
 				class="menu-button"
 				type="button"
-				onclick={() => (sidebarOpen = true)}
-				aria-label="Open menu"><Menu size={16} /></button
+				onclick={() => {
+					sidebarOpen = !sidebarOpen;
+					clampWallWidth();
+				}}
+				aria-expanded={sidebarOpen}
+				aria-label="Toggle navigation"><Menu size={19} /></button
 			>
-			<BrandMark />
+			<span class="workspace-label">Creative workspace</span>
 		</div>
 		<div class="project-switcher">
 			<button
@@ -1345,7 +1634,12 @@
 			{/if}
 		</div>
 		<div class="topbar-actions">
-			{#if activeJobs > 0}<span class="job-pill"><i></i>{activeJobs} rendering</span>{/if}
+			{#if activeJobs > 0}<span class="job-pill"
+					><i></i>{activeJobs} in progress
+					<button type="button" onclick={stopGenerations} aria-label="Stop image jobs"
+						><Square size={11} /></button
+					></span
+				>{/if}
 			<button
 				class="wall-toggle"
 				type="button"
@@ -1383,22 +1677,35 @@
 
 	<main
 		class:resizing-wall={resizingWall}
+		class:wall-hidden={!wallOpen}
 		class="workspace"
 		style={`--wall-width:${settings.generationWallWidth}px`}
 	>
 		<section class="conversation">
-			<div class="conversation-scroll">
+			<div
+				class="conversation-scroll"
+				onscroll={(event) => {
+					const element = event.currentTarget;
+					followChat = element.scrollHeight - element.scrollTop - element.clientHeight < 140;
+				}}
+			>
 				<div class="chat-column">
-					{#if step === 'topic'}
+					{#if step === 'topic' && !project.messages?.length}
 						<div class="intro-row">
 							<div class="assistant-copy">
-								<span class="speaker">Creative director</span>
-								<h1>What should we make<br />clear <em>and</em> beautiful?</h1>
+								<span class="speaker welcome-eyebrow">A little clarity. A lot of possibility.</span>
+								<h1>Big ideas.<br /><em>Beautifully</em> made clear.</h1>
 								<p>
-									Give me a topic. I’ll shape the story, research what matters, and turn it into
-									several visual directions.
+									Your creative partner for infographics, visual stories, and thoughtful image
+									edits. Start with an idea—or bring an image to reimagine.
 								</p>
 							</div>
+						</div>
+						<div class="welcome-examples" aria-hidden="true">
+							<img src={`${base}${getStyle('editorial').image}`} alt="" /><img
+								src={`${base}${getStyle('data-noir').image}`}
+								alt=""
+							/><img src={`${base}${getStyle('whiteboard').image}`} alt="" />
 						</div>
 						<div class="starter-prompts">
 							<span>Or start with an idea</span>
@@ -1411,12 +1718,23 @@
 						</div>
 					{/if}
 
-					{#if project.topic}
-						<div class="user-row">
-							<div class="user-bubble">{project.topic}</div>
-							<div class="user-avatar">EL</div>
-						</div>
-					{/if}
+					<ConversationFeed
+						messages={project.messages ?? []}
+						concepts={project.concepts}
+						generations={project.generations}
+						references={project.referenceAssets}
+						activeMessageId={agentBusy ? activeAssistantId : null}
+						selectedConceptId={project.selectedConceptId}
+						onSelect={selectConcept}
+						onPrompt={(concept) => (openPrompt = concept)}
+						onFocus={focusTimelineGeneration}
+					/>
+					{#if agentBusy}<div class="agent-progress" role="status">
+							<LoaderCircle size={16} /><span>{agentStatus}</span><button
+								type="button"
+								onclick={stopAgent}>Stop</button
+							>
+						</div>{/if}
 
 					{#if step === 'style'}
 						<div class="assistant-row compact-row">
@@ -1424,11 +1742,11 @@
 							<div class="assistant-copy">
 								<span class="speaker">Creative direction</span>
 								<p class="chat-line">
-									Lovely territory. Let’s decide how it should feel before I sketch the information.
+									Find a visual language that fits your idea. Shortlist one—or mix a few.
 								</p>
 							</div>
 						</div>
-						<div class="widget-indent">
+						<div class="widget-indent" inert={agentBusy}>
 							<StylePicker
 								selected={projectStyles.map((style) => style.id)}
 								customDirection={project.customDirection}
@@ -1447,7 +1765,7 @@
 										: `${projectStyles.length} shortlisted styles`}</small
 								><strong>{projectStyles.map((style) => style.name).join(' · ')}</strong>
 							</div>
-							<button type="button" onclick={() => (step = 'style')}>Edit</button>
+							<button type="button" onclick={() => openControls('style')}>Edit</button>
 						</div>
 					{/if}
 
@@ -1459,7 +1777,7 @@
 								<p class="chat-line">Who is this for, and how much should it say at a glance?</p>
 							</div>
 						</div>
-						<div class="widget-indent">
+						<div class="widget-indent" inert={agentBusy}>
 							<BriefWidget
 								audience={project.audience}
 								aspect={project.aspect}
@@ -1471,7 +1789,12 @@
 								onAspect={updateAspect}
 								onSize={updateImageSize}
 								onDensity={updateDensity}
-								onContinue={() => createConcepts()}
+								onContinue={() =>
+									settings.apiKey
+										? runAgent(
+												'Create three distinct infographic directions using the approved styles and current brief.'
+											)
+										: createConcepts()}
 							/>
 						</div>
 					{:else if step === 'planning' || step === 'concepts'}
@@ -1486,7 +1809,7 @@
 									][project.density - 1]}</strong
 								>
 							</div>
-							<button type="button" onclick={() => (step = 'brief')}>Edit</button>
+							<button type="button" onclick={() => openControls('brief')}>Edit</button>
 						</div>
 					{/if}
 
@@ -1500,8 +1823,16 @@
 										>{errorExpanded ? 'Hide details' : 'View details'}</button
 									>
 								{/if}
-								<button class="retry-error" type="button" onclick={() => createConcepts()}
-									>Try again</button
+								<button
+									class="retry-error"
+									type="button"
+									disabled={agentBusy}
+									onclick={() =>
+										settings.apiKey
+											? runAgent(
+													lastAgentRequest || 'Create three infographic directions from this brief.'
+												)
+											: createConcepts()}>Try again</button
 								>
 							</div>
 							{#if errorExpanded && agentDiagnostic}
@@ -1527,43 +1858,31 @@
 								<small>{agentDetail}</small>
 							</div>
 						</div>
-						<div class="activity-card">
-							<div>
-								<span class="activity-icon"><Search size={13} /></span>
-								<div>
-									<strong>Research & visual strategy</strong><small
-										>Fresh facts only when the topic needs them</small
-									>
-								</div>
-							</div>
-							<span class="activity-status"><i></i> Running</span>
-						</div>
 						<div class="parallel-directions" aria-live="polite">
 							<div class="parallel-head">
 								<div>
-									<strong>Live direction studio</strong><small
-										>Each card fills in as the plan is written</small
+									<strong>Exploring directions</strong><small
+										>Independent prompts, arriving in parallel</small
 									>
 								</div>
-								<span>{streamingConcepts.filter(Boolean).length}/3 published</span>
+								<span
+									>{streamingConcepts.filter(Boolean).length}/{streamingConcepts.length} ready</span
+								>
 							</div>
 							<div class="parallel-grid">
 								{#each streamingConcepts as concept, index (index)}
-									{#if concept}
-										<ConceptCard
-											{concept}
-											{index}
-											selected={false}
-											onSelect={() => (openPrompt = concept)}
-											onOpenPrompt={() => (openPrompt = concept)}
-										/>
-									{:else}
+									{#if !concept}
 										{@const partial = streamingPartials[index]}
 										<article class="direction-skeleton">
 											<div><span>Direction 0{index + 1}</span><LoaderCircle size={15} /></div>
-											<h4>{partial.title || 'Developing direction…'}</h4>
+											<h4>
+												{streamingErrors[index]
+													? 'Needs attention'
+													: partial.title || 'Developing direction…'}
+											</h4>
 											<p>
-												{partial.strapline ||
+												{streamingErrors[index] ||
+													partial.strapline ||
 													'Finding a distinct story structure and visual metaphor.'}
 											</p>
 											{#if partial.layout}
@@ -1584,48 +1903,7 @@
 						</div>
 					{/if}
 
-					{#if step === 'concepts' && project.concepts.length}
-						<div class="assistant-row compact-row concepts-intro">
-							<div class="mini-avatar"><Sparkles size={13} /></div>
-							<div class="assistant-copy">
-								<span class="speaker"
-									>{project.plannerModelUsed
-										? `AI directions · ${project.plannerModelUsed}`
-										: 'Demo directions · sample content'}</span
-								>
-								<p class="chat-line">
-									{planIntro || `I found three distinct visual systems for ${project.topic}.`}
-								</p>
-								<small
-									>{settings.apiKey && settings.autoGenerate
-										? 'The first drafts are rendering on your generation wall.'
-										: settings.apiKey
-											? 'Prompts are ready. No image jobs were created because auto-render is off.'
-											: 'These are clearly labeled demo prompts. Connect OpenAI for live model-written directions.'}</small
-								>
-							</div>
-						</div>
-						<div class="concept-grid">
-							{#each project.concepts as concept, index (concept.id)}
-								<ConceptCard
-									{concept}
-									{index}
-									selected={project.selectedConceptId === concept.id}
-									thumbnail={conceptThumbnail(concept.id)}
-									onSelect={() => selectConcept(concept)}
-									onOpenPrompt={() => (openPrompt = concept)}
-									onOpenGeneration={focusTimelineGeneration}
-								/>
-							{/each}
-						</div>
-
-						{#each project.notes as note, noteIndex (noteIndex)}
-							<div class="user-row followup">
-								<div class="user-bubble">{note}</div>
-								<div class="user-avatar">EL</div>
-							</div>
-						{/each}
-
+					{#if selectedConcept}
 						{#if selectedConcept}
 							<section class="batch-widget">
 								<div class="batch-copy">
@@ -1745,19 +2023,37 @@
 						aria-label="Attach reference images"
 						title="Attach reference images"><Plus size={17} /></button
 					>
-					<input
+					<textarea
 						bind:value={composerText}
-						placeholder={step === 'concepts'
-							? 'Refine the direction, ask for another angle…'
-							: 'Describe an infographic topic…'}
-						aria-label="Message"
-					/>
-					<button class="send" type="submit" aria-label="Send message"
-						><ArrowRight size={15} /></button
-					>
+						rows="2"
+						placeholder={activeReferences.length
+							? 'How should we transform your reference?'
+							: 'Describe an idea, ask a question, or reimagine an image…'}
+						onkeydown={(event) => {
+							if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+								event.preventDefault();
+								submitComposer();
+							}
+						}}
+						aria-label="Message"></textarea>
+					{#if agentBusy}<button
+							class="send stop-send"
+							type="button"
+							onclick={stopAgent}
+							aria-label="Stop agent"><Square size={15} /></button
+						>{:else}<button
+							class="send"
+							type="submit"
+							disabled={!composerText.trim()}
+							aria-label="Send message"><ArrowRight size={18} /></button
+						>{/if}
 				</form>
 				<p>
-					<Sparkles size={9} /> AI can make mistakes. Verify important facts before publishing.
+					<span
+						>{settings.apiKey
+							? settings.plannerModel
+							: 'Demo · connect OpenAI for live creation'}</span
+					><span>Enter to send · Shift + Enter for a new line</span>
 				</p>
 			</div>
 		</section>

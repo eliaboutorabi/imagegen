@@ -237,17 +237,17 @@
 		height: 100%;
 		flex-direction: column;
 		border-left: 1px solid var(--line);
-		background: #f1f0ec;
+		background: var(--wall);
 	}
 	.wall-header {
 		display: flex;
-		height: 56px;
+		height: 64px;
 		flex: 0 0 auto;
 		align-items: center;
 		justify-content: space-between;
 		padding: 0 20px;
 		border-bottom: 1px solid var(--line);
-		background: rgb(247 246 243 / 75%);
+		background: var(--wall);
 		backdrop-filter: blur(16px);
 	}
 	.wall-header > div {
@@ -257,12 +257,12 @@
 	}
 	.wall-header span {
 		font-size: 14px;
-		font-weight: 680;
+		font-weight: 550;
 		letter-spacing: -0.02em;
 	}
 	.wall-header small {
 		color: var(--muted);
-		font-size: 11px;
+		font-size: 12px;
 	}
 	.live {
 		display: flex;
@@ -272,7 +272,7 @@
 		border: 1px solid var(--line);
 		border-radius: 999px;
 		color: var(--muted);
-		background: rgb(255 255 255 / 65%);
+		background: transparent;
 		font-size: 11px !important;
 		font-weight: 650 !important;
 	}
@@ -295,7 +295,7 @@
 	.wall-scroll {
 		position: relative;
 		min-height: 0;
-		padding: 20px 18px 60px 31px;
+		padding: 22px 22px 60px;
 		flex: 1;
 		overflow-y: auto;
 	}
@@ -338,10 +338,11 @@
 		max-width: 210px;
 		margin: 0;
 		color: var(--muted);
-		font-size: 12px;
+		font-size: 14px;
 		line-height: 1.55;
 	}
 	.timeline-line {
+		display: none;
 		position: absolute;
 		top: 26px;
 		bottom: 40px;
@@ -364,6 +365,7 @@
 		z-index: 10;
 	}
 	.timeline-dot {
+		display: none;
 		position: absolute;
 		z-index: 2;
 		top: 15px;
@@ -388,8 +390,8 @@
 		overflow: visible;
 		border: 1px solid rgb(32 32 35 / 8%);
 		border-radius: 15px;
-		background: #e3e1db;
-		box-shadow: 0 12px 28px rgb(31 30 28 / 8%);
+		background: var(--surface);
+		box-shadow: 0 4px 16px rgb(31 30 28 / 4%);
 	}
 	.image-frame img {
 		display: block;

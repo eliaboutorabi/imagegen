@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { ArrowRight, Bookmark, Check, Dices, Images, Sparkles } from '@lucide/svelte';
+	import { base } from '$app/paths';
 	import { STYLE_OPTIONS } from '$lib/studio/styles';
 	import type { StyleId } from '$lib/studio/types';
 
@@ -62,7 +63,7 @@
 		<div>
 			<div class="eyebrow"><Sparkles size={13} /> Creative direction</div>
 			<h3 id="style-heading">Choose a visual language</h3>
-			<p>Click to preview, shortlist a few favorites, then choose one when you are ready.</p>
+			<p>Preview a style, or shortlist a few and use them together.</p>
 		</div>
 		<div class="head-actions">
 			<span class="style-count"><Images size={14} /> {STYLE_OPTIONS.length} styles</span>
@@ -77,10 +78,15 @@
 		<aside class="preview-stage" aria-live="polite">
 			<div class="preview-art">
 				{#key previewStyle.id}
-					<img class="preview-backdrop" src={previewStyle.image} alt="" aria-hidden="true" />
+					<img
+						class="preview-backdrop"
+						src={`${base}${previewStyle.image}`}
+						alt=""
+						aria-hidden="true"
+					/>
 					<img
 						class="preview-main"
-						src={previewStyle.image}
+						src={`${base}${previewStyle.image}`}
 						alt={`${previewStyle.name} infographic style preview`}
 					/>
 				{/key}
@@ -132,7 +138,12 @@
 					aria-label={`Preview ${style.name} style`}
 				>
 					<span class="tile-image">
-						<img src={style.image} alt="" loading={index < 6 ? 'eager' : 'lazy'} decoding="async" />
+						<img
+							src={`${base}${style.image}`}
+							alt=""
+							loading={index < 6 ? 'eager' : 'lazy'}
+							decoding="async"
+						/>
 						{#if selected.includes(style.id)}
 							<span class="check"><Check size={12} strokeWidth={3} /></span>
 						{:else if shortlisted.includes(style.id)}
@@ -158,7 +169,7 @@
 						class:active={previewed === style.id}
 						onclick={() => showPreview(style.id)}
 					>
-						<span style={`background-image:url(${style.image})`}></span>
+						<span style={`background-image:url(${base}${style.image})`}></span>
 						{style.name}
 					</button>
 				{/each}
@@ -188,22 +199,22 @@
 
 <style>
 	.style-widget {
-		--picker-surface: rgb(255 255 255 / 86%);
-		--picker-card: #fff;
-		--picker-card-muted: #f5f4f0;
+		--picker-surface: var(--panel);
+		--picker-card: var(--panel);
+		--picker-card-muted: var(--surface);
 		--picker-overlay: rgb(20 20 22 / 78%);
 		width: min(100%, 980px);
-		padding: 25px;
+		padding: 22px;
 		border: 1px solid var(--line);
-		border-radius: 24px;
+		border-radius: 16px;
 		background: var(--picker-surface);
-		box-shadow: var(--shadow-soft);
+		box-shadow: none;
 	}
 
 	:global(html[data-theme='dark']) .style-widget {
-		--picker-surface: rgb(27 28 31 / 94%);
-		--picker-card: #242529;
-		--picker-card-muted: #1d1e21;
+		--picker-surface: var(--panel);
+		--picker-card: var(--panel);
+		--picker-card-muted: var(--surface);
 		--picker-overlay: rgb(8 9 11 / 82%);
 	}
 
@@ -283,7 +294,7 @@
 
 	.style-browser {
 		display: grid;
-		grid-template-columns: minmax(270px, 0.9fr) minmax(0, 1.45fr);
+		grid-template-columns: minmax(200px, 0.85fr) minmax(0, 1.45fr);
 		height: 430px;
 		align-items: stretch;
 		gap: 10px;
@@ -559,7 +570,7 @@
 	.tile-copy small {
 		margin-top: 1px;
 		color: rgb(255 255 255 / 72%);
-		font-size: 7px;
+		font-size: 10px;
 		font-weight: 680;
 		letter-spacing: 0.07em;
 		text-transform: uppercase;
@@ -735,7 +746,7 @@
 		}
 	}
 
-	@media (max-width: 820px) {
+	@container (max-width: 600px) {
 		.style-browser {
 			grid-template-columns: 1fr;
 			height: auto;
@@ -743,6 +754,7 @@
 
 		.preview-stage {
 			height: auto;
+			grid-template-rows: 220px auto;
 		}
 
 		.style-grid {

@@ -18,10 +18,23 @@ export default defineConfig({
 	// Deep Agents' browser bundle currently contains one transitive Node-style
 	// environment lookup. Replace only process.env; do not emulate a Node runtime.
 	define: {
-		'process.env': '{}'
+		'process.env': '{}',
+		// Picomatch's browser path matcher needs a POSIX platform, not a Node
+		// process global. The agent's virtual canvas paths always use '/'.
+		'process.platform': '"browser"'
 	},
 	resolve: {
 		alias: [
+			{
+				find: /^util$/,
+				replacement: fileURLToPath(new URL('./node_modules/util/util.js', import.meta.url))
+			},
+			{
+				find: /^node:fs\/promises$/,
+				replacement: fileURLToPath(
+					new URL('./src/lib/studio/browser-filesystem.ts', import.meta.url)
+				)
+			},
 			{ find: /^path$/, replacement: pathBrowserShim },
 			{ find: /^node:path$/, replacement: pathBrowserShim }
 		]

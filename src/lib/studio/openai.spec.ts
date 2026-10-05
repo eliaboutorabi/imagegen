@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { generateImage } from './openai';
+import { generateImage, ImageSlots, runGenerationBatch } from './openai';
 import type { ReferenceAsset } from './types';
 
 const baseInput = {
@@ -27,6 +27,58 @@ function successfulFetch() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('GPT Image requests', () => {
+	it('bounds concurrency and removes canceled jobs from the waiting queue', async () => {
+		const slots = new ImageSlots(1);
+		const release = await slots.acquire();
+		const controller = new AbortController();
+		const canceled = slots.acquire(controller.signal);
+		controller.abort(new Error('Stopped'));
+		await expect(canceled).rejects.toThrow('Stopped');
+		let acquired = false;
+		const next = slots.acquire().then((release) => {
+			acquired = true;
+			return release;
+		});
+		await Promise.resolve();
+		expect(acquired).toBe(false);
+		release();
+		const releaseNext = await next;
+		expect(acquired).toBe(true);
+		releaseNext();
+	});
+
+	it('deduplicates a job across concurrent batch submissions', async () => {
+		const fetchMock = successfulFetch();
+		vi.stubGlobal('fetch', fetchMock);
+		const generation = {
+			id: 'unique-job',
+			conceptId: 'concept',
+			conceptTitle: 'Test',
+			prompt: 'Test',
+			status: 'queued' as const,
+			createdAt: 1,
+			variation: 1,
+			totalVariations: 1
+		};
+		const update = vi.fn();
+		await Promise.all([
+			runGenerationBatch([generation], { ...baseInput, references: [] }, update),
+			runGenerationBatch([generation], { ...baseInput, references: [] }, update)
+		]);
+		expect(fetchMock).toHaveBeenCalledOnce();
+		expect(update.mock.calls.map(([job]) => job.status)).toEqual(['generating', 'complete']);
+	});
+
+	it('does not send an image request when its queue has been stopped', async () => {
+		const fetchMock = successfulFetch();
+		vi.stubGlobal('fetch', fetchMock);
+		const controller = new AbortController();
+		controller.abort();
+		await expect(
+			generateImage({ ...baseInput, references: [], signal: controller.signal })
+		).rejects.toThrow();
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
 	it.each(['gpt-image-2.5-sunburst', 'gpt-image-2.5-flare'] as const)(
 		'generates with %s and preserves the custom canvas size',
 		async (model) => {

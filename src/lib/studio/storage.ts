@@ -1,6 +1,6 @@
 import type { StudioProject, StudioSettings } from './types';
 import { toCloneSafe } from './clone';
-import { imageQualities, isImageModel } from './models';
+import { DEFAULT_IMAGE_MODEL, DEFAULT_TEXT_MODEL, imageQualities, isImageModel } from './models';
 
 const SETTINGS_KEY = 'modyfi-studio-settings-v1';
 const DATABASE_NAME = 'modyfi-studio';
@@ -15,8 +15,8 @@ function projectKey(id: string) {
 
 export const DEFAULT_SETTINGS: StudioSettings = {
 	apiKey: '',
-	plannerModel: 'gpt-5.6-luna',
-	imageModel: 'gpt-image-2',
+	plannerModel: DEFAULT_TEXT_MODEL,
+	imageModel: DEFAULT_IMAGE_MODEL,
 	quality: 'medium',
 	defaultBatchSize: 4,
 	autoGenerate: true,
@@ -31,9 +31,7 @@ export function loadSettings(): StudioSettings {
 		const saved = localStorage.getItem(SETTINGS_KEY);
 		if (!saved) return DEFAULT_SETTINGS;
 		const settings = { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } as StudioSettings;
-		if (['gpt-5.4', 'gpt-5', 'gpt-4.1'].includes(settings.plannerModel)) {
-			settings.plannerModel = DEFAULT_SETTINGS.plannerModel;
-		}
+		if (!settings.plannerModel?.trim()) settings.plannerModel = DEFAULT_SETTINGS.plannerModel;
 		if (!isImageModel(settings.imageModel)) settings.imageModel = DEFAULT_SETTINGS.imageModel;
 		if (!imageQualities(settings.imageModel).includes(settings.quality)) {
 			settings.quality = 'high';
@@ -130,7 +128,7 @@ export async function listProjects(): Promise<StudioProject[]> {
 	}
 }
 
-export async function saveProject(project: StudioProject): Promise<void> {
+export async function saveProject(project: StudioProject, activate = true): Promise<void> {
 	if (typeof indexedDB === 'undefined') return;
 
 	try {
@@ -139,7 +137,7 @@ export async function saveProject(project: StudioProject): Promise<void> {
 			const transaction = database.transaction(PROJECT_STORE, 'readwrite');
 			const store = transaction.objectStore(PROJECT_STORE);
 			store.put(toCloneSafe(project), projectKey(project.id));
-			store.put(project.id, ACTIVE_PROJECT_ID_KEY);
+			if (activate) store.put(project.id, ACTIVE_PROJECT_ID_KEY);
 			transaction.oncomplete = () => {
 				database.close();
 				resolve();

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Check, Eye, EyeOff, KeyRound, ShieldCheck, SlidersHorizontal, X } from '@lucide/svelte';
 	import { IMAGE_MODELS, imageQualities, imageQualityName } from '$lib/studio/models';
+	import { DEFAULT_SETTINGS } from '$lib/studio/storage';
 	import type { StudioSettings } from '$lib/studio/types';
 
 	let {
@@ -15,16 +16,7 @@
 		onSave: (settings: StudioSettings) => void;
 	} = $props();
 
-	let draft = $state<StudioSettings>({
-		apiKey: '',
-		plannerModel: 'gpt-5.6-luna',
-		imageModel: 'gpt-image-2',
-		quality: 'medium',
-		defaultBatchSize: 4,
-		autoGenerate: true,
-		generationWallWidth: 420,
-		theme: 'light'
-	});
+	let draft = $state<StudioSettings>({ ...DEFAULT_SETTINGS });
 	let reveal = $state(false);
 	let saved = $state(false);
 
@@ -97,7 +89,13 @@
 					<SlidersHorizontal size={13} /><span>Generation defaults</span>
 				</div>
 				<div class="field-grid">
-					<label><span>Creative director</span><input value={draft.plannerModel} disabled /></label>
+					<label
+						><span>Text model</span><input
+							bind:value={draft.plannerModel}
+							placeholder="OpenAI model ID"
+							aria-label="Text model"
+						/></label
+					>
 					<label
 						><span>Image model</span><select value={draft.imageModel} onchange={updateImageModel}
 							>{#each IMAGE_MODELS as model (model.id)}<option value={model.id}>{model.name}</option
@@ -167,7 +165,7 @@
 		overflow: hidden;
 		border: 1px solid rgb(255 255 255 / 55%);
 		border-radius: 22px;
-		background: #faf9f6;
+		background: var(--panel);
 		box-shadow: 0 32px 90px rgb(16 17 19 / 28%);
 		animation: enter 180ms ease;
 	}
@@ -177,7 +175,7 @@
 		justify-content: space-between;
 		padding: 18px 20px;
 		border-bottom: 1px solid var(--line);
-		background: white;
+		background: var(--panel);
 	}
 	header > div {
 		display: flex;
@@ -201,7 +199,7 @@
 	header p {
 		margin: 0;
 		color: var(--muted);
-		font-size: 12px;
+		font-size: 13px;
 	}
 	header > button {
 		display: grid;
@@ -211,7 +209,7 @@
 		border: 1px solid var(--line);
 		border-radius: 9px;
 		color: var(--muted);
-		background: white;
+		background: var(--panel);
 	}
 	.settings-body {
 		padding: 20px;
@@ -222,7 +220,7 @@
 		gap: 7px;
 		margin-bottom: 10px;
 		color: var(--ink-2);
-		font-size: 12px;
+		font-size: 13px;
 		font-weight: 720;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
@@ -239,7 +237,7 @@
 		display: block;
 		margin-bottom: 6px;
 		color: var(--muted);
-		font-size: 12px;
+		font-size: 13px;
 		font-weight: 600;
 	}
 	.api-field > div {
@@ -254,9 +252,9 @@
 		border-radius: 10px;
 		color: var(--ink);
 		outline: 0;
-		background: white;
+		background: var(--panel);
 		font: inherit;
-		font-size: 13px;
+		font-size: 14px;
 		box-shadow: none;
 	}
 	input:focus,
@@ -301,7 +299,7 @@
 	}
 	.privacy-note p {
 		margin: 0;
-		font-size: 11px;
+		font-size: 12px;
 		line-height: 1.45;
 	}
 	.privacy-note strong {
@@ -316,7 +314,7 @@
 	.model-note {
 		margin: 7px 0 0;
 		color: var(--muted);
-		font-size: 11px;
+		font-size: 12px;
 	}
 	.toggle-row {
 		position: relative;
@@ -328,7 +326,7 @@
 		padding: 14px;
 		border: 1px solid var(--line);
 		border-radius: 12px;
-		background: white;
+		background: var(--panel);
 		cursor: pointer;
 	}
 	.toggle-row > div {
@@ -343,7 +341,7 @@
 	}
 	.toggle-row span {
 		color: var(--muted);
-		font-size: 12px;
+		font-size: 13px;
 		line-height: 1.4;
 	}
 	.toggle-row input {
@@ -368,7 +366,7 @@
 		width: 16px;
 		height: 16px;
 		border-radius: 50%;
-		background: white;
+		background: var(--panel);
 		box-shadow: 0 2px 6px rgb(20 20 22 / 18%);
 		content: '';
 		transition: 160ms ease;
@@ -390,19 +388,19 @@
 		gap: 8px;
 		padding: 14px 20px;
 		border-top: 1px solid var(--line);
-		background: white;
+		background: var(--panel);
 	}
 	footer button {
 		height: 40px;
 		padding: 0 14px;
 		border-radius: 9px;
-		font-size: 12px;
+		font-size: 13px;
 		font-weight: 650;
 	}
 	.cancel {
 		border: 1px solid var(--line);
 		color: var(--muted);
-		background: white;
+		background: var(--panel);
 	}
 	.save {
 		display: inline-flex;

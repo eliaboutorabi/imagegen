@@ -79,14 +79,16 @@
 	.concept-card {
 		display: flex;
 		min-width: 0;
-		min-height: 350px;
+		min-height: 310px;
 		padding: 19px;
 		flex-direction: column;
 		border: 1px solid var(--line);
-		border-radius: 18px;
-		background: white;
-		box-shadow: 0 8px 25px rgb(25 25 28 / 5%);
-		transition: 170ms ease;
+		border-radius: 14px;
+		background: var(--panel);
+		box-shadow: none;
+		transition:
+			border-color 170ms ease,
+			box-shadow 170ms ease;
 	}
 	.select-area {
 		display: block;
@@ -99,8 +101,7 @@
 	}
 	.concept-card:hover {
 		border-color: #c9c6bf;
-		transform: translateY(-2px);
-		box-shadow: 0 13px 31px rgb(25 25 28 / 9%);
+		box-shadow: 0 4px 16px rgb(25 25 28 / 5%);
 	}
 	.concept-card.selected {
 		border-color: var(--ink);
@@ -126,7 +127,7 @@
 		padding: 3px;
 		border: 1px solid var(--line-soft);
 		border-radius: 999px;
-		background: white;
+		background: var(--panel);
 	}
 	.palette i {
 		width: 10px;
@@ -141,13 +142,13 @@
 	h4 {
 		margin: 24px 0 5px;
 		font-size: 19px;
-		font-weight: 680;
+		font-weight: 550;
 		letter-spacing: -0.04em;
 	}
 	.strapline {
 		margin: 0 0 14px;
 		color: var(--ink-2);
-		font-size: 13px;
+		font-size: 14px;
 		line-height: 1.45;
 	}
 	.concept-thumbnail {
@@ -184,8 +185,8 @@
 		overflow: hidden;
 		margin: 0;
 		color: var(--muted);
-		font-size: 12px;
-		line-height: 1.55;
+		font-size: 14px;
+		line-height: 1.65;
 		-webkit-box-orient: vertical;
 		-webkit-line-clamp: 5;
 		line-clamp: 5;
@@ -200,7 +201,7 @@
 		margin-top: auto;
 		padding-top: 14px;
 		color: var(--muted);
-		font-size: 11px;
+		font-size: 12px;
 	}
 	.concept-footer {
 		display: flex;

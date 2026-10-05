@@ -76,6 +76,17 @@ export interface Generation {
 	referenceIds?: string[];
 	quality?: ImageQuality;
 	outputFormat?: ImageFormat;
+	model?: ImageModel;
+}
+
+export interface StudioMessage {
+	id: string;
+	role: 'user' | 'assistant';
+	content: string;
+	createdAt: number;
+	conceptIds?: string[];
+	generationIds?: string[];
+	referenceIds?: string[];
 }
 
 export interface StudioProject {
@@ -98,6 +109,9 @@ export interface StudioProject {
 	activeReferenceIds: string[];
 	createdAt: number;
 	updatedAt: number;
+	messages?: StudioMessage[];
+	agentHistory?: StoredMessage[];
+	activePanel?: 'style' | 'brief' | null;
 }
 
 export type AgentEvent =
@@ -113,7 +127,8 @@ export type AgentEvent =
 			partial: Partial<InfographicConcept>;
 			model: string;
 	  }
-	| { type: 'direction-ready'; index: number; concept: InfographicConcept; model: string };
+	| { type: 'direction-ready'; index: number; concept: InfographicConcept; model: string }
+	| { type: 'direction-error'; index: number; message: string };
 
 export interface PlanInput {
 	topic: string;
@@ -127,6 +142,7 @@ export interface PlanInput {
 	density: number;
 	count: number;
 	plannerModel?: string;
+	researchContext?: string;
 }
 
 export interface PlanResult {
@@ -135,4 +151,6 @@ export interface PlanResult {
 	researched: boolean;
 	researchNote?: string;
 	modelUsed: string | null;
+	warnings?: string[];
 }
+import type { StoredMessage } from '@langchain/core/messages';

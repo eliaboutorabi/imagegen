@@ -1,5 +1,8 @@
 import type { ImageModel, ImageQuality } from './types';
 
+export const DEFAULT_TEXT_MODEL = 'gpt-6.1-sol';
+export const DEFAULT_IMAGE_MODEL: ImageModel = 'gpt-image-2.5-flare';
+
 export const IMAGE_MODELS: Array<{
 	id: ImageModel;
 	name: string;

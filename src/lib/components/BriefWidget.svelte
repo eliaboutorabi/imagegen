@@ -190,7 +190,7 @@
 		padding: 22px;
 		border: 1px solid var(--line);
 		border-radius: 20px;
-		background: white;
+		background: var(--panel);
 		box-shadow: var(--shadow-soft);
 	}
 	.brief-title {
@@ -206,7 +206,7 @@
 	}
 	.brief-title span {
 		color: var(--accent);
-		font-size: 13px;
+		font-size: 14px;
 		font-weight: 750;
 	}
 	h3 {
@@ -218,7 +218,7 @@
 		max-width: 195px;
 		margin: 0;
 		color: var(--muted);
-		font-size: 13px;
+		font-size: 14px;
 		line-height: 1.4;
 		text-align: right;
 	}
@@ -237,13 +237,13 @@
 		gap: 6px;
 		margin-bottom: 8px;
 		color: var(--muted);
-		font-size: 13px;
+		font-size: 14px;
 		font-weight: 620;
 	}
 	.control-label b {
 		margin-left: auto;
 		color: var(--ink);
-		font-size: 12px;
+		font-size: 13px;
 		font-weight: 650;
 	}
 	.segmented {
@@ -261,13 +261,13 @@
 		border-radius: 8px;
 		color: var(--muted);
 		background: transparent;
-		font-size: 13px;
+		font-size: 14px;
 		font-weight: 600;
 		transition: 140ms ease;
 	}
 	.segmented button.active {
 		color: var(--ink);
-		background: white;
+		background: var(--panel);
 		box-shadow: 0 2px 7px rgb(20 20 22 / 8%);
 	}
 	.segmented.icons {
@@ -307,7 +307,7 @@
 		flex-direction: column;
 		gap: 4px;
 		color: var(--muted);
-		font-size: 10px;
+		font-size: 12px;
 		font-weight: 650;
 		text-transform: uppercase;
 	}
@@ -316,14 +316,14 @@
 		padding: 0 9px;
 		border: 1px solid var(--line);
 		border-radius: 8px;
-		background: white;
-		font-size: 13px;
+		background: var(--panel);
+		font-size: 14px;
 		box-shadow: none;
 	}
 	.size-editor > i {
 		padding-bottom: 10px;
 		color: var(--muted);
-		font-size: 12px;
+		font-size: 13px;
 		font-style: normal;
 	}
 	.size-presets {
@@ -339,8 +339,8 @@
 		border: 1px solid var(--line);
 		border-radius: 8px;
 		color: var(--muted);
-		background: white;
-		font-size: 10px;
+		background: var(--panel);
+		font-size: 12px;
 		font-weight: 650;
 	}
 	.size-presets button.active {
@@ -352,7 +352,7 @@
 		display: block;
 		margin-top: 7px;
 		color: var(--muted);
-		font-size: 10px;
+		font-size: 12px;
 	}
 	.canvas-size > small.error {
 		color: #a8493a;

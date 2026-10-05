@@ -8,38 +8,36 @@ The application is fully static and bring-your-own-key: there is no Infogen serv
 
 ## Highlights
 
-- **Streamed creative direction** — turns a topic and brief into distinct, model-written infographic concepts using the Responses API directly from the browser.
+- **A real creative agent** — Deep Agents 1.14.1 runs a tool-driven conversation in the browser, choosing between answering, visual controls, concept drafting, and direct image edits. No mandatory wizard.
+- **Parallel creative direction** — independent text-model calls stream distinct prompt cards and start first drafts as each complete prompt arrives.
 - **Live planning and rendering** — fills prompt cards as structured text arrives, then displays progressive image passes while independent image jobs run.
 - **Generative UI** — audience, information density, format, canvas size, batch size, quality, and output format are editable without rewriting the brief.
 - **Reference images** — upload source material or reuse a previous generation as a new reference.
 - **Current image models** — choose quality-first GPT Image 2.5 Sunburst, faster GPT Image 2.5 Flare, or GPT Image 2 for an existing workflow.
 - **Editable prompts** — inspect the complete prompt and revise it before generating a batch.
 - **Generation wall** — review every queued, active, completed, and failed render in a resizable timeline.
-- **Persistent canvases** — projects, prompts, references, and generated images survive refreshes in IndexedDB.
+- **Persistent canvases and conversations** — projects, chat transcripts, recent complete tool-call turns, prompts, references, and generated images survive refreshes in IndexedDB.
 - **Light and dark themes** — designed primarily for a spacious desktop workflow.
 - **Offline demo mode** — explore the briefing flow without making an API request.
 
 ## How it works
 
-1. Describe the infographic you want to create.
-2. Choose an information strategy and tune the audience, density, aspect ratio, and canvas size.
-3. The creative director optionally researches current facts and streams three structured visual directions.
-4. Review the full prompts while first-draft image jobs run independently.
-5. Select a direction, edit its prompt, and generate up to ten variations.
-6. Download a result, regenerate it, copy its prompt, or add it back as a reference.
+Describe an idea, ask a question, or attach a reference. The creative partner picks an appropriate next step—not a fixed sequence. Broad infographic topics can use the style gallery and optional brief controls; a clear reference edit goes straight to one image by default. You can shortlist multiple styles, inspect and edit complete prompts, generate up to ten images, or reuse any result as a reference.
+
+Image jobs are queued immediately in the wall, with at most two requests running at once across batches and canvases. They can continue while you switch canvases. Stop controls cancel pending work and request cancellation for active work; OpenAI may still bill a request that was already sent. Failed or interrupted jobs are never automatically retried on reload.
 
 ## Stack
 
-| Layer         | Technology                                    |
-| ------------- | --------------------------------------------- |
-| Application   | SvelteKit 2, Svelte 5, TypeScript             |
-| Styling       | Tailwind CSS 4 plus component CSS             |
-| Agent harness | Direct OpenAI Responses API streaming         |
-| Planning      | `gpt-5.6-luna` with compatible fallbacks      |
-| Images        | GPT Image 2.5 Sunburst, Flare, or GPT Image 2 |
-| Persistence   | `localStorage` and IndexedDB                  |
-| Validation    | Zod, Vitest, Svelte Check, ESLint, Prettier   |
-| Output        | Fully prerendered static site                 |
+| Layer         | Technology                                                              |
+| ------------- | ----------------------------------------------------------------------- |
+| Application   | SvelteKit 2, Svelte 5, TypeScript                                       |
+| Styling       | Tailwind CSS 4 plus component CSS                                       |
+| Agent harness | Deep Agents 1.14.1 (`deepagents/browser`)                               |
+| Planning      | `gpt-6.1-sol` with compatible fallbacks                                 |
+| Images        | GPT Image 2.5 Flare by default; Sunburst and GPT Image 2 also available |
+| Persistence   | `localStorage` and IndexedDB                                            |
+| Validation    | Zod, Vitest, Svelte Check, ESLint, Prettier                             |
+| Output        | Fully prerendered static site                                           |
 
 ## Getting started
 
@@ -80,14 +78,16 @@ src/
 ├── lib/
 │   ├── components/          # Brief, concept, settings, and generation UI
 │   └── studio/
-│       ├── agent.ts         # Deep Agents planning and research workflow
-│       ├── openai.ts        # Parallel image generation and edit requests
+│       ├── runtime.ts       # Deep Agents tools, streaming and conversation memory
+│       ├── agent.ts         # Independent streamed concept-drafting calls
+│       ├── openai.ts        # Bounded image queue and streamed edit requests
 │       ├── storage.ts       # Settings and multi-canvas persistence
 │       ├── diagnostics.ts   # Browser-visible diagnostic records
 │       └── types.ts         # Studio domain types
 └── routes/
     ├── +page.svelte         # Conversation and application orchestration
-    └── layout.css           # Desktop workspace and theme system
+    ├── layout.css           # Viewer, overlays and shared controls
+    └── studio.css           # Desktop workspace and theme tokens
 ```
 
 ## Data and API-key model
@@ -95,13 +95,23 @@ src/
 Infogen has no application backend. The browser sends requests directly to `api.openai.com` and stores data locally:
 
 - The OpenAI key and user settings are stored in `localStorage`.
-- Canvases, prompts, reference images, and generated images are stored in IndexedDB.
+- Canvases, chat transcripts, the latest 12 complete agent turns (including tool results), prompts, reference images, and generated images are stored in IndexedDB.
 - Recent error diagnostics are stored in `localStorage` to make failures inspectable.
 - Clearing site data removes locally saved Infogen data.
 
 This architecture is convenient for a personal static tool, but it is not equivalent to a server-mediated production architecture. Anyone who can execute JavaScript on the deployed origin—including a compromised dependency or browser extension—could read a locally stored key. Use a restricted project key with conservative usage limits, never use Infogen on a shared or untrusted device, and rotate a key immediately if it is exposed.
 
 For a public multi-user product, replace persistent browser credentials with a server-side proxy or short-lived scoped credentials before launch.
+
+## Agent design and verification
+
+The agent exposes `show_style_picker`, `show_brief_controls`, `draft_directions`, `generate_images`, `select_direction`, and OpenAI's hosted web search. Filesystem, shell, task delegation, and planning-list tools are excluded through the harness profile. Tool effects are deduplicated within a turn, interactive steps cannot be stacked repeatedly, and a turn is limited to ten image reservations. Model requests have timeouts and cancellation; image requests have no automatic retry.
+
+The harness is lazy-loaded when live conversation starts. Browser compatibility adapters cover the harness's transitive path/pattern dependencies; optional Node filesystem access explicitly throws rather than pretending it is available. Changing the text model is supported in Settings. All LangChain runtime packages are version-pinned with compatible peer dependencies.
+
+`npx playwright test` exercises the actual production browser bundle and Deep Agents loop against mocked OpenAI streams, including reference edits, canvas history, theme switching, and reloads. No paid images are generated by the tests. Live model quality and account/model availability still require testing with your own key.
+
+Upstream dependency advisories should be reviewed before public hosting (`npm audit`). The current Deep Agents release still inherits a `braces`/`micromatch` advisory with no patched upstream release; the affected file/glob tools are not exposed by this app. This restriction does not constitute a blanket security guarantee.
 
 ## Deploying
 
@@ -123,7 +133,7 @@ Before publishing a deployment:
 
 ## Current scope
 
-Infogen is optimized for personal desktop use and infographic ideation. Mobile refinement, a server-backed authentication model, collaborative projects, image editing, collage tools, and layout composition are natural future extensions.
+Infogen is optimized for personal desktop use and infographic ideation. Mobile refinement, a server-backed authentication model, collaborative projects, advanced masked editing, collage tools, and layout composition are natural future extensions.
 
 ## Contributing
 

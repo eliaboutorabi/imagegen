@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_TEXT_MODEL } from './models';
 import { readSseStream, type OpenAIStreamEvent } from './stream';
 import type { AgentEvent, InfographicConcept, PlanInput, PlanResult } from './types';
 
@@ -85,6 +86,10 @@ function stringValues(raw: string, field: string) {
 	const values: string[] = [];
 	const pattern = new RegExp(`"${field}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"`, 'g');
 	for (const match of raw.matchAll(pattern)) values.push(decodeJsonString(match[1]));
+	// Publish the unfinished last string too: a prompt should grow token by
+	// token, not appear only once its closing quote has arrived.
+	const open = new RegExp(`"${field}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)$`).exec(raw);
+	if (open) values.push(decodeJsonString(open[1]));
 	return values;
 }
 
@@ -147,7 +152,15 @@ function isUnavailableModelError(error: unknown) {
 }
 
 function plannerCandidates(requested?: string) {
-	return [...new Set([requested || 'gpt-5.6-luna', 'gpt-5.6-luna', 'gpt-5.4', 'gpt-5'])];
+	return [
+		...new Set([
+			requested || DEFAULT_TEXT_MODEL,
+			DEFAULT_TEXT_MODEL,
+			'gpt-5.6-luna',
+			'gpt-5.4',
+			'gpt-5'
+		])
+	];
 }
 
 function demoPlan(input: PlanInput): PlanResult {
@@ -206,7 +219,8 @@ async function requestPlan(
 	input: PlanInput,
 	apiKey: string,
 	model: string,
-	onEvent: (event: AgentEvent) => void
+	onEvent: (event: AgentEvent) => void,
+	signal?: AbortSignal
 ) {
 	const response = await fetch('https://api.openai.com/v1/responses', {
 		method: 'POST',
@@ -217,9 +231,8 @@ async function requestPlan(
 			stream: true,
 			instructions:
 				'You are a senior infographic creative director. Produce sharply differentiated, production-ready directions with accurate, concise on-canvas copy. Use web search only when current facts materially affect accuracy. Every direction must use a different story structure, information architecture, and topic-specific visual metaphor. Treat every visual language in the approved shortlist as intentional user input: distribute them across the directions, give each direction a clear primary style, combine compatible shortlisted styles only when needed to represent a shortlist longer than the direction count, and never silently discard an approved style.',
-			input: `Topic: ${input.topic}\nApproved visual-language shortlist:\n${input.styleLabels.map((style, index) => `${index + 1}. ${style}`).join('\n')}\n${input.customDirection ? `Additional art direction: ${input.customDirection}\n` : ''}Audience: ${input.audience}\nFormat: ${input.aspect}\nCanvas: ${input.imageWidth}×${input.imageHeight}\nInformation density: ${input.density}/3\nCreate exactly ${input.count} original directions. Each image prompt must be complete, written specifically for this brief, and explicitly name its primary approved visual language. Across the complete set, reflect every approved visual language.`,
-			tools: [{ type: 'web_search' }],
-			...(model.startsWith('gpt-5') ? { reasoning: { effort: 'low' } } : {}),
+			input: `Topic: ${input.topic}\nApproved visual-language shortlist:\n${input.styleLabels.map((style, index) => `${index + 1}. ${style}`).join('\n')}\n${input.customDirection ? `Additional art direction: ${input.customDirection}\n` : ''}Audience: ${input.audience}\nFormat: ${input.aspect}\nCanvas: ${input.imageWidth}×${input.imageHeight}\nInformation density: ${input.density}/3\n${input.researchContext ? `Verified research (cite sources in the rationale; never invent data):\n${input.researchContext}\n` : 'Use stable facts only. Never fabricate statistics.\n'}Create exactly ${input.count} original directions. Each image prompt must include the actual on-canvas text, a topic-specific visual metaphor, hierarchy, layout, typography and color guidance. Explicitly name its primary approved visual language.`,
+			...(/^gpt-[56]/.test(model) ? { reasoning: { effort: 'low' } } : {}),
 			text: {
 				format: {
 					type: 'json_schema',
@@ -229,7 +242,9 @@ async function requestPlan(
 				}
 			}
 		}),
-		signal: AbortSignal.timeout(REQUEST_TIMEOUT)
+		signal: signal
+			? AbortSignal.any([signal, AbortSignal.timeout(REQUEST_TIMEOUT)])
+			: AbortSignal.timeout(REQUEST_TIMEOUT)
 	});
 	if (!response.ok) await throwApiError(response);
 
@@ -237,7 +252,7 @@ async function requestPlan(
 	let completedResponse: unknown;
 	let usedSearch = false;
 	const started = new Set<number>();
-	const ready = new Set<number>();
+	const ready = new Map<number, InfographicConcept>();
 	const previous = new Map<number, string>();
 
 	function publishProgress() {
@@ -259,16 +274,22 @@ async function requestPlan(
 				previous.set(index, serialized);
 				onEvent({ type: 'direction-progress', index, partial, model });
 			}
-			const complete = conceptSchema.safeParse(partial);
-			if (complete.success && !ready.has(index)) {
-				ready.add(index);
-				onEvent({
-					type: 'direction-ready',
-					index,
-					concept: { ...complete.data, id: uid() },
-					model
-				});
+		}
+		// Never spend on an unfinished prompt. Only publish a renderable card
+		// once the whole JSON document is valid (before the final SSE event).
+		try {
+			const complete = planSchema.safeParse(JSON.parse(raw));
+			if (complete.success && complete.data.concepts.length === input.count) {
+				for (const [offset, data] of complete.data.concepts.entries()) {
+					const index = offset + 1;
+					if (ready.has(index)) continue;
+					const concept = { ...data, id: uid() };
+					ready.set(index, concept);
+					onEvent({ type: 'direction-ready', index, concept, model });
+				}
 			}
+		} catch {
+			/* A partial JSON document is expected while streaming. */
 		}
 	}
 
@@ -301,18 +322,25 @@ async function requestPlan(
 	if (parsed.concepts.length !== input.count) {
 		throw new Error(`Expected ${input.count} directions, received ${parsed.concepts.length}.`);
 	}
-	return { ...parsed, researched: parsed.researched || usedSearch };
+	return {
+		...parsed,
+		concepts: parsed.concepts.map(
+			(concept, index) => ready.get(index + 1) ?? { ...concept, id: uid() }
+		),
+		researched: parsed.researched || usedSearch || Boolean(input.researchContext)
+	};
 }
 
 export async function planInfographics(
 	input: PlanInput,
 	apiKey: string,
-	onEvent: (event: AgentEvent) => void
+	onEvent: (event: AgentEvent) => void,
+	signal?: AbortSignal
 ): Promise<PlanResult> {
 	if (!apiKey) return demoPlan(input);
 
 	const runtimeStage = 'requesting-streamed-plan';
-	let activeModel = input.plannerModel || 'gpt-5.6-luna';
+	let activeModel = input.plannerModel || DEFAULT_TEXT_MODEL;
 	const attemptedModels: string[] = [];
 	try {
 		onEvent({ type: 'thinking', label: 'Reading the brief' });
@@ -322,11 +350,64 @@ export async function planInfographics(
 			attemptedModels.push(model);
 			onEvent({ type: 'planning', label: `Planning with ${model}` });
 			try {
-				const plan = await requestPlan(input, apiKey, model, onEvent);
+				const structures = [
+					'a relationship / systems map',
+					'a narrative sequence or comparison',
+					'a practical visual field guide',
+					'a data-led hierarchy',
+					'a process diagram',
+					'a visual explainer'
+				];
+				const results = await Promise.allSettled(
+					Array.from({ length: input.count }, async (_, offset) => {
+						const styles = input.styleLabels.filter((_, index) => index % input.count === offset);
+						const labels = styles.length
+							? styles
+							: [input.styleLabels[offset % input.styleLabels.length] || 'Editorial narrative'];
+						onEvent({
+							type: 'direction-start',
+							index: offset + 1,
+							label: `Direction ${offset + 1}`,
+							model
+						});
+						return requestPlan(
+							{
+								...input,
+								count: 1,
+								styleLabels: labels,
+								customDirection: `${input.customDirection || ''}\nThis is independent direction ${offset + 1}. Explore ${structures[offset % structures.length]}; do not use a generic template.`
+							},
+							apiKey,
+							model,
+							(event) => {
+								if ('index' in event) onEvent({ ...event, index: offset + 1 });
+								else onEvent(event);
+							},
+							signal
+						);
+					})
+				);
+				if (signal?.aborted) throw signal.reason;
+				const fulfilled = results.flatMap((result) =>
+					result.status === 'fulfilled' ? [result.value] : []
+				);
+				if (!fulfilled.length) throw (results[0] as PromiseRejectedResult).reason;
+				const warnings = results.flatMap((result, offset) => {
+					if (result.status === 'fulfilled') return [];
+					const message =
+						result.reason instanceof Error
+							? result.reason.message
+							: 'This direction could not be completed.';
+					onEvent({ type: 'direction-error', index: offset + 1, message });
+					return [`Direction ${offset + 1}: ${message}`];
+				});
 				return {
-					...plan,
-					concepts: plan.concepts.map((concept) => ({ ...concept, id: uid() })),
-					modelUsed: model
+					intro: `${fulfilled.length} distinct visual direction${fulfilled.length === 1 ? '' : 's'}, written for your brief.`,
+					concepts: fulfilled.flatMap((plan) => plan.concepts),
+					researched: fulfilled.some((plan) => plan.researched),
+					researchNote: input.researchContext || '',
+					modelUsed: model,
+					warnings
 				};
 			} catch (error) {
 				if (isUnavailableModelError(error) && index < candidates.length - 1) continue;

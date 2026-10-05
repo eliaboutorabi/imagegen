@@ -42,7 +42,7 @@ describe('infographic planning', () => {
 		expect(result.concepts[2].prompt).toContain('Handwritten paper');
 	});
 
-	it('streams a strict Responses plan without loading a Node agent runtime', async () => {
+	it('streams independent strict Responses directions in parallel with stable IDs', async () => {
 		const concepts = Array.from({ length: 3 }, (_, index) => ({
 			title: `Direction ${index + 1}`,
 			strapline: `Hook ${index + 1}`,
@@ -51,33 +51,36 @@ describe('infographic planning', () => {
 			layout: `Layout ${index + 1}`,
 			palette: ['#111111', '#eeeeee', '#ff5533']
 		}));
-		const payload = JSON.stringify({
-			intro: 'Three live directions.',
-			researched: false,
-			researchNote: '',
-			concepts
-		});
 		const encoder = new TextEncoder();
-		const fetchMock = vi.fn().mockResolvedValue(
-			new Response(
-				new ReadableStream({
-					start(controller) {
-						controller.enqueue(
-							encoder.encode(
-								`event: response.output_text.delta\ndata: ${JSON.stringify({ type: 'response.output_text.delta', delta: payload })}\n\n`
-							)
-						);
-						controller.enqueue(
-							encoder.encode(
-								'event: response.completed\ndata: {"type":"response.completed","response":{}}\n\n'
-							)
-						);
-						controller.close();
-					}
-				}),
-				{ headers: { 'content-type': 'text/event-stream' } }
-			)
-		);
+		let call = 0;
+		const fetchMock = vi.fn().mockImplementation(() => {
+			const payload = JSON.stringify({
+				intro: 'A live direction.',
+				researched: false,
+				researchNote: '',
+				concepts: [concepts[call++]]
+			});
+			return Promise.resolve(
+				new Response(
+					new ReadableStream({
+						start(controller) {
+							controller.enqueue(
+								encoder.encode(
+									`event: response.output_text.delta\ndata: ${JSON.stringify({ type: 'response.output_text.delta', delta: payload })}\n\n`
+								)
+							);
+							controller.enqueue(
+								encoder.encode(
+									'event: response.completed\ndata: {"type":"response.completed","response":{}}\n\n'
+								)
+							);
+							controller.close();
+						}
+					}),
+					{ headers: { 'content-type': 'text/event-stream' } }
+				)
+			);
+		});
 		vi.stubGlobal('fetch', fetchMock);
 		const events: AgentEvent[] = [];
 
@@ -94,6 +97,12 @@ describe('infographic planning', () => {
 		]);
 		expect(events.filter((event) => event.type === 'direction-progress')).toHaveLength(3);
 		expect(events.filter((event) => event.type === 'direction-ready')).toHaveLength(3);
+		expect(fetchMock).toHaveBeenCalledTimes(3);
+		expect(result.concepts.map((concept) => concept.id)).toEqual(
+			events
+				.filter((event) => event.type === 'direction-ready')
+				.map((event) => (event.type === 'direction-ready' ? event.concept.id : ''))
+		);
 		const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
 		expect(request).toMatchObject({
 			model: 'gpt-5.6-luna',
@@ -107,6 +116,10 @@ describe('infographic planning', () => {
 			'{"concepts":[{"title":"Signal map","strapline":"A clear hook","prompt":"Still writing',
 			3
 		);
-		expect(partial[0]).toEqual({ title: 'Signal map', strapline: 'A clear hook' });
+		expect(partial[0]).toEqual({
+			title: 'Signal map',
+			strapline: 'A clear hook',
+			prompt: 'Still writing'
+		});
 	});
 });
