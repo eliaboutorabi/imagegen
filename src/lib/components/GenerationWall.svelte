@@ -1,17 +1,18 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	import {
-		AlertCircle,
-		ArrowDownToLine,
-		Check,
-		Clock3,
-		Copy,
-		EllipsisVertical,
-		ImageIcon,
-		ImagePlus,
-		LoaderCircle,
-		RotateCcw,
-		Sparkles
-	} from '@lucide/svelte';
+		AlertCircleIcon as AlertCircle,
+		ArrowDownToLineIcon as ArrowDownToLine,
+		Tick02Icon as Check,
+		Clock01Icon as Clock3,
+		Copy01Icon as Copy,
+		EllipsisVerticalIcon as EllipsisVertical,
+		Image02Icon as ImageIcon,
+		ImagePlusIcon as ImagePlus,
+		Loading03Icon as LoaderCircle,
+		RotateCcwIcon as RotateCcw,
+		SparklesIcon as Sparkles
+	} from '@hugeicons/core-free-icons';
 	import type { Generation } from '$lib/studio/types';
 
 	let {
@@ -100,7 +101,9 @@
 	<div class="wall-scroll">
 		{#if generations.length === 0}
 			<div class="empty-wall">
-				<div class="empty-orbit"><ImageIcon size={21} /><Sparkles class="spark" size={12} /></div>
+				<div class="empty-orbit">
+					<Icon icon={ImageIcon} size={21} /><Icon icon={Sparkles} class="spark" size={12} />
+				</div>
 				<strong>Your generations will live here</strong>
 				<p>Every draft, variation, and final image stays in this scrollable timeline.</p>
 			</div>
@@ -140,17 +143,19 @@
 								alt={`Progressive rendering of ${generation.conceptTitle}`}
 							/>
 							<div class="partial-status">
-								<LoaderCircle size={13} /><span>Rendering preview · pass {partial.index + 1}</span>
+								<Icon icon={LoaderCircle} size={13} /><span
+									>Rendering preview · pass {partial.index + 1}</span
+								>
 							</div>
 						{:else if generation.status === 'error'}
 							<div class="error-state">
-								<AlertCircle size={19} /><span>Generation paused</span><small
+								<Icon icon={AlertCircle} size={19} /><span>Generation paused</span><small
 									>{generation.error}</small
 								>
 							</div>
 						{:else if generation.status === 'needs-key' || generation.status === 'ready'}
 							<div class="prompt-only-state">
-								<ImageIcon size={21} />
+								<Icon icon={ImageIcon} size={21} />
 								<strong>No image yet</strong>
 								<span>The prompt is ready, but generation has not started.</span>
 								<button type="button" onclick={() => onRetry(generation)}>Render this prompt</button
@@ -158,7 +163,7 @@
 							</div>
 						{:else}
 							<div class="generating-state" aria-live="polite">
-								<div class="render-orbit"><LoaderCircle size={22} /></div>
+								<div class="render-orbit"><Icon icon={LoaderCircle} size={22} /></div>
 								<div class="shimmer"></div>
 								<div class="shimmer short"></div>
 								<div class="shimmer block"></div>
@@ -174,7 +179,7 @@
 					<div class="generation-meta">
 						<strong>{generation.conceptTitle}</strong>
 						<div class="generation-actions">
-							<time><Clock3 size={10} /> {dateLabel(generation.createdAt)}</time>
+							<time><Icon icon={Clock3} size={10} /> {dateLabel(generation.createdAt)}</time>
 							<button
 								class="asset-menu-button"
 								type="button"
@@ -183,12 +188,13 @@
 								onclick={(event) => {
 									event.stopPropagation();
 									openMenuId = openMenuId === generation.id ? null : generation.id;
-								}}><EllipsisVertical size={16} /></button
+								}}><Icon icon={EllipsisVertical} size={16} /></button
 							>
 							{#if openMenuId === generation.id}
 								<div class="asset-menu">
 									<button type="button" onclick={() => copyPrompt(generation)}
-										>{#if copiedId === generation.id}<Check size={13} />{:else}<Copy
+										>{#if copiedId === generation.id}<Icon icon={Check} size={13} />{:else}<Icon
+												icon={Copy}
 												size={13}
 											/>{/if}
 										Copy prompt</button
@@ -198,7 +204,7 @@
 										onclick={() => {
 											openMenuId = null;
 											onRegenerate(generation);
-										}}><RotateCcw size={13} /> Regenerate</button
+										}}><Icon icon={RotateCcw} size={13} /> Regenerate</button
 									>
 									<button
 										type="button"
@@ -206,13 +212,13 @@
 										onclick={() => {
 											openMenuId = null;
 											onReference(generation);
-										}}><ImagePlus size={13} /> Use as reference</button
+										}}><Icon icon={ImagePlus} size={13} /> Use as reference</button
 									>
 									<button
 										type="button"
 										disabled={!generation.imageUrl}
 										onclick={() => download(generation)}
-										><ArrowDownToLine size={13} /> Download</button
+										><Icon icon={ArrowDownToLine} size={13} /> Download</button
 									>
 								</div>
 							{/if}
@@ -220,7 +226,7 @@
 					</div>
 					{#if generation.status === 'error'}
 						<button class="retry" type="button" onclick={() => onRetry(generation)}
-							><RotateCcw size={12} /> Retry</button
+							><Icon icon={RotateCcw} size={12} /> Retry</button
 						>
 					{/if}
 				</article>

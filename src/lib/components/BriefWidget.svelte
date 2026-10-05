@@ -1,12 +1,13 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	import {
-		ArrowRight,
-		Gauge,
-		RectangleHorizontal,
-		RectangleVertical,
-		Square,
-		Users
-	} from '@lucide/svelte';
+		ArrowRight02Icon as ArrowRight,
+		GaugeIcon as Gauge,
+		RectangleHorizontalIcon as RectangleHorizontal,
+		RectangleVerticalIcon as RectangleVertical,
+		SquareIcon as Square,
+		UserGroupIcon as Users
+	} from '@hugeicons/core-free-icons';
 	import type { Aspect, Audience } from '$lib/studio/types';
 
 	let {
@@ -79,7 +80,7 @@
 	</div>
 
 	<div class="control-row">
-		<div class="control-label"><Users size={14} /><span>Audience</span></div>
+		<div class="control-label"><Icon icon={Users} size={14} /><span>Audience</span></div>
 		<div class="segmented audience">
 			{#each audiences as option (option)}
 				<button class:active={audience === option} type="button" onclick={() => onAudience(option)}
@@ -91,35 +92,38 @@
 
 	<div class="control-row split">
 		<div>
-			<div class="control-label"><RectangleHorizontal size={14} /><span>Format</span></div>
+			<div class="control-label">
+				<Icon icon={RectangleHorizontal} size={14} /><span>Format</span>
+			</div>
 			<div class="segmented icons">
 				<button
 					class:active={aspect === 'landscape'}
 					aria-label="Landscape"
 					title="Landscape"
 					type="button"
-					onclick={() => onAspect('landscape')}><RectangleHorizontal size={16} /></button
+					onclick={() => onAspect('landscape')}
+					><Icon icon={RectangleHorizontal} size={16} /></button
 				>
 				<button
 					class:active={aspect === 'portrait'}
 					aria-label="Portrait"
 					title="Portrait"
 					type="button"
-					onclick={() => onAspect('portrait')}><RectangleVertical size={16} /></button
+					onclick={() => onAspect('portrait')}><Icon icon={RectangleVertical} size={16} /></button
 				>
 				<button
 					class:active={aspect === 'square'}
 					aria-label="Square"
 					title="Square"
 					type="button"
-					onclick={() => onAspect('square')}><Square size={15} /></button
+					onclick={() => onAspect('square')}><Icon icon={Square} size={15} /></button
 				>
 			</div>
 		</div>
 
 		<div class="density-control">
 			<div class="control-label">
-				<Gauge size={14} /><span>Information density</span><b
+				<Icon icon={Gauge} size={14} /><span>Information density</span><b
 					>{['Light', 'Balanced', 'Dense'][density - 1]}</b
 				>
 			</div>
@@ -138,7 +142,7 @@
 
 	<div class="control-row canvas-size">
 		<div class="control-label">
-			<RectangleHorizontal size={14} /><span>GPT Image canvas</span><b
+			<Icon icon={RectangleHorizontal} size={14} /><span>GPT Image canvas</span><b
 				>{imageWidth} × {imageHeight}</b
 			>
 		</div>
@@ -180,7 +184,7 @@
 
 	<button class="continue" type="button" disabled={Boolean(sizeError)} onclick={onContinue}>
 		{connected ? 'Generate three directions' : 'Preview demo directions'}
-		<ArrowRight size={15} />
+		<Icon icon={ArrowRight} size={15} />
 	</button>
 </section>
 

@@ -71,6 +71,7 @@ function responseStream(output: Record<string, unknown>, model: string) {
 async function mockStudio(page: Page, theme = 'light') {
 	await page.setViewportSize({ width: 1600, height: 1000 });
 	await page.addInitScript((theme) => {
+		if (localStorage.getItem('modyfi-studio-settings-v1')) return;
 		localStorage.setItem(
 			'modyfi-studio-settings-v1',
 			JSON.stringify({
@@ -408,10 +409,122 @@ test('desktop shell is theme-aware and panels collapse cleanly', async ({ page }
 	await composer.press('Shift+Enter');
 	await composer.press('A');
 	await expect(composer).toHaveValue('A long first line\nA');
-	await expect(composer).toHaveCSS('font-size', '15px');
+	await expect(composer).toHaveCSS('font-size', '16px');
 	await page.setViewportSize({ width: 1200, height: 900 });
 	await page.getByRole('button', { name: 'Toggle generation wall' }).click();
 	await expect
 		.poll(async () => (await page.locator('.conversation').boundingBox())?.width ?? 0)
 		.toBeGreaterThanOrEqual(440);
+});
+
+test('composer controls persist and apply to real generation requests', async ({ page }) => {
+	const requests = await mockStudio(page);
+	await page.goto('/');
+	await page.getByRole('button', { name: /^Text model:/ }).click();
+	await page.getByRole('button', { name: /GPT 6.1 Sol A thoughtful/ }).click();
+	await expect(page.getByRole('dialog', { name: 'Choose text model' })).toBeHidden();
+	await page.getByRole('button', { name: /^Image model:/ }).click();
+	await page.getByRole('button', { name: /GPT Image 2.5 Flare Fast/ }).click();
+	await page.getByRole('button', { name: 'Image settings', exact: true }).click();
+	const settings = page.getByRole('dialog', { name: 'Image settings' });
+	await settings.getByRole('button', { name: 'Wide 16:9' }).click();
+	await settings.getByRole('combobox', { name: 'Image quality' }).selectOption('high');
+	await settings.getByRole('combobox', { name: 'Image file type' }).selectOption('png');
+	await settings.getByRole('checkbox', { name: 'Auto-render first drafts' }).uncheck();
+	await page.screenshot({ path: '/tmp/infogen-composer-settings-light.png' });
+	await settings.getByRole('button', { name: 'Close composer menu' }).press('Escape');
+	await expect(settings).toBeHidden();
+	await expect(page.getByRole('button', { name: 'Image settings', exact: true })).toBeFocused();
+	await page.reload();
+	await expect(page.getByRole('button', { name: 'Text model: GPT 6.1 Sol' })).toBeVisible();
+	await expect(
+		page.getByRole('button', { name: 'Image model: GPT Image 2.5 Flare' })
+	).toBeVisible();
+	await page.getByRole('button', { name: 'Image settings', exact: true }).click();
+	await expect(settings.getByRole('combobox', { name: 'Image quality' })).toHaveValue('high');
+	await expect(settings.getByRole('combobox', { name: 'Image file type' })).toHaveValue('png');
+	await expect(
+		settings.getByRole('checkbox', { name: 'Auto-render first drafts' })
+	).not.toBeChecked();
+	await expect(settings.getByRole('button', { name: 'Wide 16:9' })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+	await page.getByRole('textbox', { name: 'Message', exact: true }).click();
+	await expect(settings).toBeHidden();
+	await page.getByRole('textbox', { name: 'Message', exact: true }).fill('One direct image');
+	await page.getByRole('button', { name: 'Send message' }).click();
+	await expect(page.locator('img[alt^="Generated infographic:"]')).toHaveCount(1);
+	expect(
+		JSON.parse(requests.find((request) => request.url.includes('/responses'))!.body).model
+	).toBe('gpt-6.1-sol');
+	expect(
+		JSON.parse(requests.find((request) => request.url.includes('/images/'))!.body)
+	).toMatchObject({
+		model: 'gpt-image-2.5-flare',
+		quality: 'high',
+		output_format: 'png',
+		size: '2048x1152'
+	});
+});
+
+test('composer references keep their aspect ratio and controls fit a compact desktop', async ({
+	page
+}) => {
+	await mockStudio(page, 'dark');
+	await page.goto('/');
+	await page
+		.locator('.studio-composer input[type=file]')
+		.setInputFiles('static/style-previews/editorial-narrative.jpg');
+	const reference = page.locator('.composer-references img');
+	await expect(reference).toBeVisible();
+	await expect(reference).toHaveCSS('object-fit', 'contain');
+	await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toHaveAttribute(
+		'placeholder',
+		'What would you like to change in this image?'
+	);
+	await page.getByRole('button', { name: 'Image settings', exact: true }).click();
+	await expect(page.getByRole('button', { name: 'Wide 16:9' })).toBeDisabled();
+	await page.getByRole('button', { name: 'Close composer menu' }).click();
+	await page.setViewportSize({ width: 1200, height: 900 });
+	await page.screenshot({ path: '/tmp/infogen-composer-compact-dark.png' });
+	const toolbar = page.locator('.composer-toolbar');
+	expect(await toolbar.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+		true
+	);
+	await page.getByRole('button', { name: 'Remove editorial-narrative.jpg' }).click();
+	await expect(reference).toBeHidden();
+	await page.getByRole('button', { name: /^Text model:/ }).click();
+	await expect(page.getByRole('dialog', { name: 'Choose text model' })).toBeVisible();
+	await page.getByRole('button', { name: /GPT 6 Luna Quick/ }).click();
+	await expect(page.getByRole('button', { name: 'Text model: GPT 6 Luna' })).toBeVisible();
+});
+
+test('composer accepts pasted and dropped images and grows with the draft', async ({ page }) => {
+	const requests = await mockStudio(page);
+	await page.goto('/');
+	const composer = page.getByRole('textbox', { name: 'Message', exact: true });
+	await composer.evaluate((element, image) => {
+		const bytes = Uint8Array.from(atob(image), (character) => character.charCodeAt(0));
+		const transfer = new DataTransfer();
+		transfer.items.add(new File([bytes], 'pasted-reference.jpg', { type: 'image/jpeg' }));
+		element.dispatchEvent(
+			new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true })
+		);
+	}, image);
+	await expect(page.getByRole('img', { name: 'pasted-reference.jpg', exact: true })).toBeVisible();
+	await page.locator('.studio-composer').evaluate((element, image) => {
+		const bytes = Uint8Array.from(atob(image), (character) => character.charCodeAt(0));
+		const transfer = new DataTransfer();
+		transfer.items.add(new File([bytes], 'dropped-reference.jpg', { type: 'image/jpeg' }));
+		element.dispatchEvent(
+			new DragEvent('drop', { dataTransfer: transfer, bubbles: true, cancelable: true })
+		);
+	}, image);
+	await expect(page.getByRole('img', { name: 'dropped-reference.jpg', exact: true })).toBeVisible();
+	await composer.fill(Array.from({ length: 20 }, (_, index) => `Line ${index}`).join('\n'));
+	await expect(composer).toHaveCSS('height', '192px');
+	await composer.fill('');
+	await expect(composer).toHaveCSS('height', '72px');
+	expect(requests).toHaveLength(0);
 });

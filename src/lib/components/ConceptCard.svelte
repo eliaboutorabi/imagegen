@@ -1,5 +1,12 @@
 <script lang="ts">
-	import { ArrowUpRight, Check, Copy, Expand, LayoutTemplate } from '@lucide/svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import {
+		ArrowUpRight01Icon as ArrowUpRight,
+		Tick02Icon as Check,
+		Copy01Icon as Copy,
+		ExpandIcon as Expand,
+		LayoutTemplateIcon as LayoutTemplate
+	} from '@hugeicons/core-free-icons';
 	import type { Generation, InfographicConcept } from '$lib/studio/types';
 
 	let {
@@ -60,17 +67,21 @@
 	>
 		<p class="prompt">{concept.prompt}</p>
 	</button>
-	<div class="layout"><LayoutTemplate size={12} /><span>{concept.layout}</span></div>
+	<div class="layout"><Icon icon={LayoutTemplate} size={12} /><span>{concept.layout}</span></div>
 	<div class="concept-footer">
 		<button class="view-prompt" type="button" onclick={onOpenPrompt}
-			><Expand size={13} /> Read full prompt</button
+			><Icon icon={Expand} size={13} /> Read full prompt</button
 		>
 		<div>
 			<button class="copy" type="button" onclick={copyPrompt} aria-label="Copy prompt"
-				>{#if copied}<Check size={13} />{:else}<Copy size={13} />{/if}</button
+				>{#if copied}<Icon icon={Check} size={13} />{:else}<Icon
+						icon={Copy}
+						size={13}
+					/>{/if}</button
 			>
-			{#if selected}<span class="selected-check"><Check size={12} strokeWidth={3} /></span
-				>{:else}<ArrowUpRight size={14} />{/if}
+			{#if selected}<span class="selected-check"
+					><Icon icon={Check} size={12} strokeWidth={3} /></span
+				>{:else}<Icon icon={ArrowUpRight} size={14} />{/if}
 		</div>
 	</div>
 </article>

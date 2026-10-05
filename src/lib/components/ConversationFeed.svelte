@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { ArrowUpRight, ImageIcon, LoaderCircle } from '@lucide/svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import {
+		ArrowUpRight01Icon as ArrowUpRight,
+		Image02Icon as ImageIcon,
+		Loading03Icon as LoaderCircle
+	} from '@hugeicons/core-free-icons';
 	import ConceptCard from './ConceptCard.svelte';
 	import type {
 		Generation,
@@ -36,7 +41,8 @@
 			<div class="message-label">
 				{message.role === 'user'
 					? 'You'
-					: 'Creative partner'}{#if message.id === activeMessageId}<LoaderCircle
+					: 'Creative partner'}{#if message.id === activeMessageId}<Icon
+						icon={LoaderCircle}
 						size={13}
 						class="spin"
 					/>{/if}
@@ -86,10 +92,11 @@
 										src={generation.imageUrl}
 										alt={generation.conceptTitle}
 									/>{:else}<span class="image-icon"
-										>{#if generation.status === 'queued' || generation.status === 'generating'}<LoaderCircle
+										>{#if generation.status === 'queued' || generation.status === 'generating'}<Icon
+												icon={LoaderCircle}
 												size={18}
 												class="spin"
-											/>{:else}<ImageIcon size={18} />{/if}</span
+											/>{:else}<Icon icon={ImageIcon} size={18} />{/if}</span
 									>{/if}
 								<span
 									><strong>{generation.conceptTitle}</strong><small
@@ -101,7 +108,7 @@
 													? 'Queued · waiting for a slot'
 													: 'Rendering in the wall'}</small
 									></span
-								><ArrowUpRight size={16} />
+								><Icon icon={ArrowUpRight} size={16} />
 							</button>
 						{/if}
 					{/each}

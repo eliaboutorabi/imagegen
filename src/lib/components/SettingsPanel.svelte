@@ -1,5 +1,14 @@
 <script lang="ts">
-	import { Check, Eye, EyeOff, KeyRound, ShieldCheck, SlidersHorizontal, X } from '@lucide/svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import {
+		Tick02Icon as Check,
+		ViewIcon as Eye,
+		ViewOffIcon as EyeOff,
+		KeyRoundIcon as KeyRound,
+		ShieldCheckIcon as ShieldCheck,
+		SlidersHorizontalIcon as SlidersHorizontal,
+		Cancel01Icon as X
+	} from '@hugeicons/core-free-icons';
 	import { IMAGE_MODELS, imageQualities, imageQualityName } from '$lib/studio/models';
 	import { DEFAULT_SETTINGS } from '$lib/studio/storage';
 	import type { StudioSettings } from '$lib/studio/types';
@@ -49,17 +58,21 @@
 		<div class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-heading">
 			<header>
 				<div>
-					<span class="settings-icon"><SlidersHorizontal size={16} /></span>
+					<span class="settings-icon"><Icon icon={SlidersHorizontal} size={16} /></span>
 					<div>
 						<h2 id="settings-heading">Studio settings</h2>
 						<p>Your connection, your defaults.</p>
 					</div>
 				</div>
-				<button type="button" onclick={onClose} aria-label="Close settings"><X size={17} /></button>
+				<button type="button" onclick={onClose} aria-label="Close settings"
+					><Icon icon={X} size={17} /></button
+				>
 			</header>
 
 			<div class="settings-body">
-				<div class="section-title"><KeyRound size={13} /><span>OpenAI connection</span></div>
+				<div class="section-title">
+					<Icon icon={KeyRound} size={13} /><span>OpenAI connection</span>
+				</div>
 				<label class="api-field">
 					<span>API key</span>
 					<div>
@@ -73,12 +86,15 @@
 							type="button"
 							onclick={() => (reveal = !reveal)}
 							aria-label={reveal ? 'Hide key' : 'Show key'}
-							>{#if reveal}<EyeOff size={15} />{:else}<Eye size={15} />{/if}</button
+							>{#if reveal}<Icon icon={EyeOff} size={15} />{:else}<Icon
+									icon={Eye}
+									size={15}
+								/>{/if}</button
 						>
 					</div>
 				</label>
 				<div class="privacy-note">
-					<ShieldCheck size={14} />
+					<Icon icon={ShieldCheck} size={14} />
 					<p>
 						<strong>Stored only on this device.</strong> This static app sends your key directly to OpenAI
 						from the browser. Use a restricted project key and avoid shared devices.
@@ -86,7 +102,7 @@
 				</div>
 
 				<div class="section-title models">
-					<SlidersHorizontal size={13} /><span>Generation defaults</span>
+					<Icon icon={SlidersHorizontal} size={13} /><span>Generation defaults</span>
 				</div>
 				<div class="field-grid">
 					<label
@@ -140,7 +156,7 @@
 					class="save"
 					type="button"
 					onclick={submit}
-					>{#if saved}<Check size={14} /> Saved{:else}Save settings{/if}</button
+					>{#if saved}<Icon icon={Check} size={14} /> Saved{:else}Save settings{/if}</button
 				>
 			</footer>
 		</div>

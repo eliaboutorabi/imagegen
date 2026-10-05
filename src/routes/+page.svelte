@@ -2,42 +2,44 @@
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import Icon from '$lib/components/Icon.svelte';
 	import {
-		ArrowDownToLine,
-		ArrowRight,
-		Check,
-		ChevronDown,
-		ChevronLeft,
-		ChevronRight,
-		Copy,
-		FileText,
-		GalleryHorizontalEnd,
-		Home,
-		ImageIcon,
-		ImagePlus,
-		KeyRound,
-		LoaderCircle,
-		Menu,
-		Minus,
-		Moon,
-		PanelLeftClose,
-		Plus,
-		RotateCcw,
-		Settings2,
-		Sparkles,
-		Square,
-		Sun,
-		Trash2,
-		X,
-		ZoomIn,
-		ZoomOut
-	} from '@lucide/svelte';
+		ArrowDownToLineIcon as ArrowDownToLine,
+		ArrowRight02Icon as ArrowRight,
+		Tick02Icon as Check,
+		ChevronDownIcon as ChevronDown,
+		ChevronLeftIcon as ChevronLeft,
+		ChevronRightIcon as ChevronRight,
+		Copy01Icon as Copy,
+		FileTextIcon as FileText,
+		GalleryHorizontalEndIcon as GalleryHorizontalEnd,
+		Home01Icon as Home,
+		Image02Icon as ImageIcon,
+		ImagePlusIcon as ImagePlus,
+		KeyRoundIcon as KeyRound,
+		Loading03Icon as LoaderCircle,
+		Menu01Icon as Menu,
+		MinusSignIcon as Minus,
+		MoonIcon as Moon,
+		PanelLeftCloseIcon as PanelLeftClose,
+		PlusSignIcon as Plus,
+		RotateCcwIcon as RotateCcw,
+		Settings04Icon as Settings2,
+		SparklesIcon as Sparkles,
+		SquareIcon as Square,
+		Sun03Icon as Sun,
+		Delete02Icon as Trash2,
+		Cancel01Icon as X,
+		ZoomInIcon as ZoomIn,
+		ZoomOutIcon as ZoomOut
+	} from '@hugeicons/core-free-icons';
 	import BrandMark from '$lib/components/BrandMark.svelte';
 	import BriefWidget from '$lib/components/BriefWidget.svelte';
 	import ConversationFeed from '$lib/components/ConversationFeed.svelte';
 	import GenerationWall from '$lib/components/GenerationWall.svelte';
 	import SettingsPanel from '$lib/components/SettingsPanel.svelte';
 	import StylePicker from '$lib/components/StylePicker.svelte';
+	import StudioComposer from '$lib/components/StudioComposer.svelte';
 	import { planInfographics } from '$lib/studio/agent';
 	import { referenceCanvas } from '$lib/studio/canvas';
 	import {
@@ -170,7 +172,6 @@
 	let lightboxTargetPanX = 0;
 	let lightboxTargetPanY = 0;
 	let lightboxAnimationFrame = 0;
-	let attachmentInput: HTMLInputElement;
 	let lightboxStage = $state<HTMLDivElement>();
 	let agentBusy = $state(false);
 	let followChat = $state(true);
@@ -319,7 +320,7 @@
 		batchPrompt =
 			project.concepts.find((concept) => concept.id === project.selectedConceptId)?.prompt ?? '';
 		batchQuality = settings.quality;
-		batchFormat = 'webp';
+		batchFormat = settings.outputFormat;
 		step = stepForProject(project);
 		agentError = '';
 		openPrompt = null;
@@ -757,7 +758,7 @@
 		queue = true,
 		promptOverride?: string,
 		quality: ImageQuality = settings.quality,
-		outputFormat: ImageFormat = 'webp'
+		outputFormat: ImageFormat = settings.outputFormat
 	): Generation {
 		return {
 			id: crypto.randomUUID(),
@@ -816,7 +817,7 @@
 				width: project.imageWidth,
 				height: project.imageHeight,
 				references: project.referenceAssets,
-				outputFormat: 'webp',
+				outputFormat: settings.outputFormat,
 				signal: controller.signal,
 				onPartial: (generation, imageUrl, index) => {
 					if (project.id !== ownerId || deletedCanvasIds.has(ownerId)) return;
@@ -848,7 +849,7 @@
 		batchSize = settings.defaultBatchSize;
 		batchPrompt = concept.prompt;
 		batchQuality = settings.quality;
-		batchFormat = 'webp';
+		batchFormat = settings.outputFormat;
 		persist();
 		setTimeout(
 			() =>
@@ -970,11 +971,9 @@
 		}, 3200);
 	}
 
-	async function attachFiles(event: Event) {
-		const input = event.currentTarget as HTMLInputElement;
-		const files = [...(input.files ?? [])];
-		input.value = '';
+	async function attachFiles(files: File[]) {
 		if (!files.length) return;
+		const ownerId = project.id;
 
 		const slots = Math.max(0, MAX_ACTIVE_REFERENCES - project.activeReferenceIds.length);
 		const accepted = files.slice(0, slots);
@@ -991,6 +990,13 @@
 			try {
 				const dataUrl = await readFileAsDataUrl(file);
 				const dimensions = await readImageDimensions(dataUrl);
+				// File reads may finish after navigation or another paste/drop.
+				if (project.id !== ownerId) return;
+				if (project.activeReferenceIds.length >= MAX_ACTIVE_REFERENCES) {
+					showAttachmentMessage(`You can use up to ${MAX_ACTIVE_REFERENCES} references.`);
+					if (added) persist();
+					return;
+				}
 				const asset: ReferenceAsset = {
 					id: crypto.randomUUID(),
 					name: file.name,
@@ -1004,6 +1010,7 @@
 				project.activeReferenceIds = [...project.activeReferenceIds, asset.id];
 				added += 1;
 			} catch (error) {
+				if (project.id !== ownerId) return;
 				showAttachmentMessage(
 					error instanceof Error ? error.message : 'Could not attach this image.'
 				);
@@ -1332,6 +1339,8 @@
 		clampWallWidth();
 		applyTheme(next.theme);
 		batchSize = next.defaultBatchSize;
+		batchQuality = next.quality;
+		batchFormat = next.outputFormat;
 		saveSettings($state.snapshot(settings));
 		if (pendingConcept && next.apiKey) {
 			const concept = pendingConcept;
@@ -1346,6 +1355,12 @@
 			);
 			void runAgent(request.instruction);
 		}
+	}
+
+	function updateComposerSettings(changes: Partial<StudioSettings>) {
+		const next = { ...settings, ...changes };
+		if (!imageQualities(next.imageModel).includes(next.quality)) next.quality = 'medium';
+		updateSettings(next);
 	}
 
 	async function resetStudio() {
@@ -1524,11 +1539,11 @@
 		<div class="sidebar-head">
 			<BrandMark />
 			<button type="button" onclick={() => (sidebarOpen = false)} aria-label="Close navigation"
-				><PanelLeftClose size={17} /></button
+				><Icon icon={PanelLeftClose} size={17} /></button
 			>
 		</div>
 		<button class="sidebar-new" type="button" onclick={startNewCanvas}
-			><Plus size={15} /> New blank canvas</button
+			><Icon icon={Plus} size={15} /> New blank canvas</button
 		>
 		<nav>
 			<span>Canvas history</span>
@@ -1544,7 +1559,7 @@
 								class="history-preview"
 								src={preview.imageUrl}
 								alt=""
-							/>{:else}<Home size={17} />{/if}
+							/>{:else}<Icon icon={Home} size={17} />{/if}
 						<div>
 							<strong>{canvas.topic || 'Untitled infographic'}</strong><small
 								>{canvas.concepts.length} directions · {canvas.generations.length} renders</small
@@ -1559,7 +1574,7 @@
 					wallOpen = true;
 					if (window.innerWidth < 1180) sidebarOpen = false;
 				}}
-				><GalleryHorizontalEnd size={15} />
+				><Icon icon={GalleryHorizontalEnd} size={15} />
 				<div><strong>Generation wall</strong><small>Review every render</small></div></button
 			>
 		</nav>
@@ -1578,14 +1593,15 @@
 			onclick={() => {
 				settingsOpen = true;
 				if (window.innerWidth < 1180) sidebarOpen = false;
-			}}><Settings2 size={15} /> Studio settings</button
+			}}><Icon icon={Settings2} size={15} /> Studio settings</button
 		>
 		<button
 			class:armed={resetArmed}
 			class="sidebar-action danger"
 			type="button"
 			onclick={requestReset}
-			><Trash2 size={15} /> {resetArmed ? 'Confirm deletion' : 'Delete this canvas'}</button
+			><Icon icon={Trash2} size={15} />
+			{resetArmed ? 'Confirm deletion' : 'Delete this canvas'}</button
 		>
 	</aside>
 
@@ -1599,7 +1615,7 @@
 					clampWallWidth();
 				}}
 				aria-expanded={sidebarOpen}
-				aria-label="Toggle navigation"><Menu size={19} /></button
+				aria-label="Toggle navigation"><Icon icon={Menu} size={19} /></button
 			>
 			<span class="workspace-label">Creative workspace</span>
 		</div>
@@ -1611,24 +1627,26 @@
 				aria-expanded={projectMenuOpen}
 			>
 				<span>{project.topic || 'Untitled infographic'}</span>
-				<ChevronDown size={13} />
+				<Icon icon={ChevronDown} size={13} />
 			</button>
 			{#if projectMenuOpen}
 				<div class="project-menu">
 					<div>
 						<strong>{project.topic || 'Untitled infographic'}</strong><small>Current canvas</small>
 					</div>
-					<button type="button" onclick={startNewCanvas}><Plus size={14} /> New blank canvas</button
+					<button type="button" onclick={startNewCanvas}
+						><Icon icon={Plus} size={14} /> New blank canvas</button
 					>
 					<button
 						type="button"
 						onclick={() => {
 							wallOpen = true;
 							projectMenuOpen = false;
-						}}><GalleryHorizontalEnd size={14} /> Open generation wall</button
+						}}><Icon icon={GalleryHorizontalEnd} size={14} /> Open generation wall</button
 					>
 					<button class:armed={resetArmed} class="danger" type="button" onclick={requestReset}
-						><Trash2 size={14} /> {resetArmed ? 'Confirm deletion' : 'Delete canvas'}</button
+						><Icon icon={Trash2} size={14} />
+						{resetArmed ? 'Confirm deletion' : 'Delete canvas'}</button
 					>
 				</div>
 			{/if}
@@ -1637,7 +1655,7 @@
 			{#if activeJobs > 0}<span class="job-pill"
 					><i></i>{activeJobs} in progress
 					<button type="button" onclick={stopGenerations} aria-label="Stop image jobs"
-						><Square size={11} /></button
+						><Icon icon={Square} size={11} /></button
 					></span
 				>{/if}
 			<button
@@ -1645,7 +1663,8 @@
 				type="button"
 				onclick={() => (wallOpen = !wallOpen)}
 				aria-label="Toggle generation wall"
-				><GalleryHorizontalEnd size={16} />{#if completedJobs}<span>{completedJobs}</span
+				><Icon icon={GalleryHorizontalEnd} size={16} />{#if completedJobs}<span
+						>{completedJobs}</span
 					>{/if}</button
 			>
 			<button
@@ -1654,7 +1673,8 @@
 				type="button"
 				onclick={() => (settingsOpen = true)}
 			>
-				{#if settings.apiKey}<Check size={12} strokeWidth={3} /> Connected{:else}<KeyRound
+				{#if settings.apiKey}<Icon icon={Check} size={12} strokeWidth={3} /> Connected{:else}<Icon
+						icon={KeyRound}
 						size={13}
 					/> Demo mode{/if}
 			</button>
@@ -1664,13 +1684,16 @@
 				onclick={toggleTheme}
 				aria-label={settings.theme === 'dark' ? 'Use light mode' : 'Use dark mode'}
 				title={settings.theme === 'dark' ? 'Use light mode' : 'Use dark mode'}
-				>{#if settings.theme === 'dark'}<Sun size={16} />{:else}<Moon size={16} />{/if}</button
+				>{#if settings.theme === 'dark'}<Icon icon={Sun} size={16} />{:else}<Icon
+						icon={Moon}
+						size={16}
+					/>{/if}</button
 			>
 			<button
 				class="settings-button"
 				type="button"
 				onclick={() => (settingsOpen = true)}
-				aria-label="Settings"><Settings2 size={16} /></button
+				aria-label="Settings"><Icon icon={Settings2} size={16} /></button
 			>
 		</div>
 	</header>
@@ -1712,7 +1735,8 @@
 							<div>
 								{#each starterTopics as topic (topic)}<button
 										type="button"
-										onclick={() => useStarter(topic)}>{topic}<ArrowRight size={12} /></button
+										onclick={() => useStarter(topic)}
+										>{topic}<Icon icon={ArrowRight} size={12} /></button
 									>{/each}
 							</div>
 						</div>
@@ -1730,7 +1754,7 @@
 						onFocus={focusTimelineGeneration}
 					/>
 					{#if agentBusy}<div class="agent-progress" role="status">
-							<LoaderCircle size={16} /><span>{agentStatus}</span><button
+							<Icon icon={LoaderCircle} size={16} /><span>{agentStatus}</span><button
 								type="button"
 								onclick={stopAgent}>Stop</button
 							>
@@ -1738,7 +1762,7 @@
 
 					{#if step === 'style'}
 						<div class="assistant-row compact-row">
-							<div class="mini-avatar"><Sparkles size={13} /></div>
+							<div class="mini-avatar"><Icon icon={Sparkles} size={13} /></div>
 							<div class="assistant-copy">
 								<span class="speaker">Creative direction</span>
 								<p class="chat-line">
@@ -1757,7 +1781,7 @@
 						</div>
 					{:else if projectStyles.length}
 						<div class="decision-summary">
-							<span><Sparkles size={13} /></span>
+							<span><Icon icon={Sparkles} size={13} /></span>
 							<div>
 								<small
 									>{projectStyles.length === 1
@@ -1771,7 +1795,7 @@
 
 					{#if step === 'brief'}
 						<div class="assistant-row compact-row">
-							<div class="mini-avatar"><Sparkles size={13} /></div>
+							<div class="mini-avatar"><Icon icon={Sparkles} size={13} /></div>
 							<div class="assistant-copy">
 								<span class="speaker">One last thing</span>
 								<p class="chat-line">Who is this for, and how much should it say at a glance?</p>
@@ -1799,7 +1823,7 @@
 						</div>
 					{:else if step === 'planning' || step === 'concepts'}
 						<div class="decision-summary brief">
-							<span><FileText size={13} /></span>
+							<span><Icon icon={FileText} size={13} /></span>
 							<div>
 								<small>Brief</small><strong
 									>{project.audience} · {project.imageWidth}×{project.imageHeight} · {[
@@ -1815,7 +1839,7 @@
 
 					{#if agentError}
 						<div class:expanded={errorExpanded} class="error-bubble">
-							<X size={14} />
+							<Icon icon={X} size={14} />
 							<div class="error-copy"><strong>I hit a snag</strong><span>{agentError}</span></div>
 							<div class="error-actions">
 								{#if agentDiagnostic}
@@ -1840,7 +1864,7 @@
 									<div>
 										<strong>Local diagnostic</strong>
 										<button type="button" onclick={copyDiagnostic}
-											><Copy size={12} /> {diagnosticCopied ? 'Copied' : 'Copy'}</button
+											><Icon icon={Copy} size={12} /> {diagnosticCopied ? 'Copied' : 'Copy'}</button
 										>
 									</div>
 									<pre>{agentDiagnosticText}</pre>
@@ -1851,7 +1875,7 @@
 
 					{#if step === 'planning'}
 						<div class="assistant-row compact-row planning-row">
-							<div class="mini-avatar working"><LoaderCircle size={14} /></div>
+							<div class="mini-avatar working"><Icon icon={LoaderCircle} size={14} /></div>
 							<div class="assistant-copy">
 								<span class="speaker">Agent at work</span>
 								<p class="chat-line"><strong>{agentStatus}</strong></p>
@@ -1874,7 +1898,9 @@
 									{#if !concept}
 										{@const partial = streamingPartials[index]}
 										<article class="direction-skeleton">
-											<div><span>Direction 0{index + 1}</span><LoaderCircle size={15} /></div>
+											<div>
+												<span>Direction 0{index + 1}</span><Icon icon={LoaderCircle} size={15} />
+											</div>
 											<h4>
 												{streamingErrors[index]
 													? 'Needs attention'
@@ -1907,7 +1933,7 @@
 						{#if selectedConcept}
 							<section class="batch-widget">
 								<div class="batch-copy">
-									<span class="batch-icon"><ImageIcon size={16} /></span>
+									<span class="batch-icon"><Icon icon={ImageIcon} size={16} /></span>
 									<div>
 										<span>Selected direction</span>
 										<h3>{selectedConcept.title}</h3>
@@ -1937,12 +1963,12 @@
 												type="button"
 												aria-label="Decrease batch"
 												onclick={() => (batchSize = Math.max(1, batchSize - 1))}
-												><Minus size={13} /></button
+												><Icon icon={Minus} size={13} /></button
 											><strong>{batchSize}</strong><button
 												type="button"
 												aria-label="Increase batch"
 												onclick={() => (batchSize = Math.min(10, batchSize + 1))}
-												><Plus size={13} /></button
+												><Icon icon={Plus} size={13} /></button
 											>
 										</div>
 									</div>
@@ -1968,7 +1994,7 @@
 									type="button"
 									disabled={!batchPrompt.trim()}
 									onclick={() => createBatch(selectedConcept!, batchSize)}
-									><Sparkles size={14} /> Generate {batchSize} variation{batchSize === 1
+									><Icon icon={Sparkles} size={14} /> Generate {batchSize} variation{batchSize === 1
 										? ''
 										: 's'}</button
 								>
@@ -1979,82 +2005,23 @@
 			</div>
 
 			<div class="composer-wrap">
-				{#if activeReferences.length || attachmentMessage}
-					<div class="attachment-tray" aria-live="polite">
-						<div class="attachment-list">
-							{#each activeReferences as reference (reference.id)}
-								<div class="attachment-chip">
-									<img src={reference.dataUrl} alt="" />
-									<span
-										><strong>{reference.name}</strong><small
-											>{reference.width} × {reference.height}</small
-										></span
-									>
-									<button
-										type="button"
-										onclick={() => removeReference(reference.id)}
-										aria-label={`Remove ${reference.name}`}><X size={12} /></button
-									>
-								</div>
-							{/each}
-						</div>
-						{#if attachmentMessage}<span class="attachment-message">{attachmentMessage}</span>{/if}
-					</div>
-				{/if}
-				<form
-					class="composer"
-					onsubmit={(event) => {
-						event.preventDefault();
-						submitComposer();
-					}}
-				>
-					<input
-						class="attachment-input"
-						bind:this={attachmentInput}
-						type="file"
-						accept="image/png,image/jpeg,image/webp"
-						multiple
-						onchange={attachFiles}
-					/>
-					<button
-						class="attach-button"
-						type="button"
-						onclick={() => attachmentInput?.click()}
-						aria-label="Attach reference images"
-						title="Attach reference images"><Plus size={17} /></button
-					>
-					<textarea
-						bind:value={composerText}
-						rows="2"
-						placeholder={activeReferences.length
-							? 'How should we transform your reference?'
-							: 'Describe an idea, ask a question, or reimagine an image…'}
-						onkeydown={(event) => {
-							if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
-								event.preventDefault();
-								submitComposer();
-							}
-						}}
-						aria-label="Message"></textarea>
-					{#if agentBusy}<button
-							class="send stop-send"
-							type="button"
-							onclick={stopAgent}
-							aria-label="Stop agent"><Square size={15} /></button
-						>{:else}<button
-							class="send"
-							type="submit"
-							disabled={!composerText.trim()}
-							aria-label="Send message"><ArrowRight size={18} /></button
-						>{/if}
-				</form>
-				<p>
-					<span
-						>{settings.apiKey
-							? settings.plannerModel
-							: 'Demo · connect OpenAI for live creation'}</span
-					><span>Enter to send · Shift + Enter for a new line</span>
-				</p>
+				<StudioComposer
+					bind:value={composerText}
+					{settings}
+					width={project.imageWidth}
+					height={project.imageHeight}
+					references={activeReferences}
+					busy={agentBusy}
+					activity={agentStatus}
+					{attachmentMessage}
+					onSubmit={submitComposer}
+					onStop={stopAgent}
+					onFiles={attachFiles}
+					onRemoveReference={removeReference}
+					onSettingsChange={updateComposerSettings}
+					onSizeChange={updateImageSize}
+					onOpenSettings={() => (settingsOpen = true)}
+				/>
 			</div>
 		</section>
 
@@ -2081,7 +2048,7 @@
 				class="mobile-wall-close"
 				type="button"
 				onclick={() => (wallOpen = false)}
-				aria-label="Close generation wall"><X size={17} /></button
+				aria-label="Close generation wall"><Icon icon={X} size={17} /></button
 			>
 			<GenerationWall
 				generations={project.generations}
@@ -2119,12 +2086,12 @@
 					<h2>{openPrompt.title}</h2>
 				</div>
 				<button type="button" onclick={() => (openPrompt = null)} aria-label="Close prompt"
-					><X size={18} /></button
+					><Icon icon={X} size={18} /></button
 				>
 			</header>
 			<div class="prompt-inspector-body">
 				<div class="prompt-meta">
-					<span><FileText size={13} /> Full, unabridged prompt</span><span
+					<span><Icon icon={FileText} size={13} /> Full, unabridged prompt</span><span
 						>{openPrompt.prompt.length.toLocaleString()} characters</span
 					>
 				</div>
@@ -2132,7 +2099,7 @@
 			</div>
 			<footer>
 				<button class="copy-full" type="button" onclick={copyOpenPrompt}
-					><Copy size={14} /> {promptCopied ? 'Copied' : 'Copy full prompt'}</button
+					><Icon icon={Copy} size={14} /> {promptCopied ? 'Copied' : 'Copy full prompt'}</button
 				>
 				<button
 					class="use-direction"
@@ -2140,7 +2107,7 @@
 					onclick={() => {
 						selectConcept(openPrompt!);
 						openPrompt = null;
-					}}>Use this direction <ArrowRight size={14} /></button
+					}}>Use this direction <Icon icon={ArrowRight} size={14} /></button
 				>
 			</footer>
 		</div>
@@ -2166,7 +2133,7 @@
 						type="button"
 						onclick={() => setLightboxZoom(lightboxTargetZoom / 1.25)}
 						disabled={lightboxTargetZoom <= 1}
-						aria-label="Zoom out"><ZoomOut size={17} /></button
+						aria-label="Zoom out"><Icon icon={ZoomOut} size={17} /></button
 					>
 					<button
 						type="button"
@@ -2178,25 +2145,25 @@
 						type="button"
 						onclick={() => setLightboxZoom(lightboxTargetZoom * 1.25)}
 						disabled={lightboxTargetZoom >= 5}
-						aria-label="Zoom in"><ZoomIn size={17} /></button
+						aria-label="Zoom in"><Icon icon={ZoomIn} size={17} /></button
 					>
 				</div>
 				<div class="lightbox-commands" aria-label="Image actions">
 					<button type="button" onclick={copyLightboxPrompt}
-						><Copy size={15} /> {lightboxCopied ? 'Copied' : 'Copy prompt'}</button
+						><Icon icon={Copy} size={15} /> {lightboxCopied ? 'Copied' : 'Copy prompt'}</button
 					>
 					<button
 						type="button"
 						onclick={() => {
 							regenerateGeneration(openGeneration!);
 							closeGenerationViewer();
-						}}><RotateCcw size={15} /> Regenerate</button
+						}}><Icon icon={RotateCcw} size={15} /> Regenerate</button
 					>
 					<button type="button" onclick={() => referenceGeneration(openGeneration!)}
-						><ImagePlus size={15} /> Reference</button
+						><Icon icon={ImagePlus} size={15} /> Reference</button
 					>
 					<button type="button" onclick={downloadOpenGeneration}
-						><ArrowDownToLine size={15} /> Download</button
+						><Icon icon={ArrowDownToLine} size={15} /> Download</button
 					>
 				</div>
 				<button
@@ -2206,13 +2173,14 @@
 					onclick={() => setLightboxFilmstrip(!lightboxFilmstripOpen)}
 					aria-label={lightboxFilmstripOpen ? 'Hide thumbnails' : 'Show thumbnails'}
 					title={lightboxFilmstripOpen ? 'Hide thumbnails' : 'Show thumbnails'}
-					aria-pressed={lightboxFilmstripOpen}><GalleryHorizontalEnd size={18} /></button
+					aria-pressed={lightboxFilmstripOpen}
+					><Icon icon={GalleryHorizontalEnd} size={18} /></button
 				>
 				<button
 					class="lightbox-close"
 					type="button"
 					onclick={closeGenerationViewer}
-					aria-label="Close image"><X size={20} /></button
+					aria-label="Close image"><Icon icon={X} size={20} /></button
 				>
 			</div>
 		</header>
@@ -2236,14 +2204,14 @@
 					type="button"
 					disabled={lightboxIndex <= 0}
 					onclick={() => navigateLightbox(-1)}
-					aria-label="Previous image"><ChevronLeft size={23} /></button
+					aria-label="Previous image"><Icon icon={ChevronLeft} size={23} /></button
 				>
 				<button
 					class="lightbox-nav next"
 					type="button"
 					disabled={lightboxIndex >= lightboxGenerations.length - 1}
 					onclick={() => navigateLightbox(1)}
-					aria-label="Next image"><ChevronRight size={23} /></button
+					aria-label="Next image"><Icon icon={ChevronRight} size={23} /></button
 				>
 			{/if}
 			<div

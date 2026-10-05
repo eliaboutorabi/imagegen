@@ -30,6 +30,7 @@ export interface StudioSettings {
 	plannerModel: string;
 	imageModel: ImageModel;
 	quality: ImageQuality;
+	outputFormat: ImageFormat;
 	defaultBatchSize: number;
 	autoGenerate: boolean;
 	generationWallWidth: number;

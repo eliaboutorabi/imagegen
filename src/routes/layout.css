@@ -872,154 +872,6 @@ select:focus-visible {
 	background: rgb(251 250 248 / 94%);
 	backdrop-filter: blur(16px);
 }
-.composer {
-	display: flex;
-	height: 60px;
-	align-items: center;
-	gap: 7px;
-	padding: 6px 7px 6px 12px;
-	border: 1px solid #d5d2cb;
-	border-radius: 17px;
-	background: rgb(255 255 255 / 93%);
-	box-shadow: 0 15px 45px rgb(22 23 26 / 12%);
-	backdrop-filter: blur(16px);
-}
-.composer > button:not(.send) {
-	display: grid;
-	width: 29px;
-	height: 29px;
-	flex: 0 0 auto;
-	place-items: center;
-	border: 0;
-	color: var(--muted);
-	background: transparent;
-}
-.attachment-input {
-	display: none;
-}
-.attach-button {
-	position: relative;
-	width: 36px !important;
-	height: 36px !important;
-	border: 1px solid var(--line) !important;
-	border-radius: 11px !important;
-	color: var(--ink-2) !important;
-	background: var(--surface) !important;
-}
-.attachment-tray {
-	display: flex;
-	align-items: flex-end;
-	justify-content: space-between;
-	gap: 12px;
-	margin-bottom: 9px;
-}
-.attachment-list {
-	display: flex;
-	min-width: 0;
-	overflow-x: auto;
-	gap: 7px;
-	scrollbar-width: thin;
-}
-.attachment-chip {
-	display: grid;
-	min-width: 185px;
-	max-width: 230px;
-	height: 50px;
-	grid-template-columns: 40px minmax(0, 1fr) 24px;
-	align-items: center;
-	gap: 8px;
-	padding: 5px;
-	border: 1px solid var(--line);
-	border-radius: 12px;
-	background: rgb(255 255 255 / 86%);
-	box-shadow: 0 7px 22px rgb(22 23 26 / 7%);
-}
-.attachment-chip img {
-	width: 40px;
-	height: 40px;
-	border-radius: 8px;
-	background: var(--surface);
-	object-fit: cover;
-}
-.attachment-chip > span {
-	display: flex;
-	min-width: 0;
-	flex-direction: column;
-	gap: 2px;
-}
-.attachment-chip strong {
-	overflow: hidden;
-	font-size: 11px;
-	font-weight: 680;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-.attachment-chip small,
-.attachment-message {
-	color: var(--muted);
-	font-size: 10px;
-}
-.attachment-chip button {
-	display: grid;
-	width: 24px;
-	height: 24px;
-	padding: 0;
-	place-items: center;
-	border: 0;
-	border-radius: 7px;
-	color: var(--muted);
-	background: transparent;
-}
-.attachment-chip button:hover {
-	color: var(--ink);
-	background: var(--surface);
-}
-.attachment-message {
-	max-width: 220px;
-	padding-bottom: 5px;
-	text-align: right;
-}
-.composer input {
-	min-width: 0;
-	height: 100%;
-	padding: 0 8px;
-	flex: 1;
-	border: 0;
-	outline: 0;
-	background: transparent;
-	font-size: 13px;
-	box-shadow: none;
-}
-.composer input::placeholder {
-	color: #aaa79f;
-}
-.shortcut {
-	display: flex;
-	align-items: center;
-	gap: 1px;
-	color: #aaa79f;
-	font-size: 11px;
-}
-.send {
-	display: grid;
-	width: 42px;
-	height: 42px;
-	flex: 0 0 auto;
-	place-items: center;
-	border: 0;
-	border-radius: 11px;
-	color: white;
-	background: var(--ink);
-}
-.composer-wrap > p {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 4px;
-	margin: 7px 0 0;
-	color: #aaa79f;
-	font-size: 10px;
-}
 .wall-pane {
 	min-width: 0;
 	min-height: 0;
@@ -1980,8 +1832,6 @@ html[data-theme='dark'] .studio-sidebar,
 html[data-theme='dark'] .sidebar-new,
 html[data-theme='dark'] .sidebar-action,
 html[data-theme='dark'] .connection,
-html[data-theme='dark'] .composer,
-html[data-theme='dark'] .attachment-chip,
 html[data-theme='dark'] .decision-summary,
 html[data-theme='dark'] .decision-summary button,
 html[data-theme='dark'] .activity-card,
@@ -2029,12 +1879,6 @@ html[data-theme='dark'] .composer-wrap {
 	background: rgb(17 18 20 / 92%);
 	box-shadow: 0 -18px 45px rgb(0 0 0 / 15%);
 }
-html[data-theme='dark'] .composer {
-	border-color: #3b3c40;
-	background: rgb(28 29 32 / 94%);
-	box-shadow: 0 18px 55px rgb(0 0 0 / 35%);
-}
-html[data-theme='dark'] .composer input,
 html[data-theme='dark'] input,
 html[data-theme='dark'] select {
 	color: var(--ink);
@@ -2079,10 +1923,6 @@ html[data-theme='dark'] .diagnostic-details,
 html[data-theme='dark'] .error-bubble button {
 	background: #241817;
 }
-html[data-theme='dark'] .attachment-chip {
-	background: rgb(28 29 32 / 92%);
-	box-shadow: 0 10px 28px rgb(0 0 0 / 22%);
-}
 html[data-theme='dark'] .batch-prompt textarea {
 	border-color: var(--line);
 	color: var(--ink-2);
@@ -2093,9 +1933,6 @@ html[data-theme='dark'] .batch-option select {
 	border-color: var(--line);
 	color: var(--ink-2);
 	background: #1b1c1f;
-}
-html[data-theme='dark'] .attach-button {
-	background: #292a2e !important;
 }
 html[data-theme='dark'] .wall {
 	border-color: #303135;

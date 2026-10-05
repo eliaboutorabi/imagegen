@@ -1,5 +1,13 @@
 <script lang="ts">
-	import { ArrowRight, Bookmark, Check, Dices, Images, Sparkles } from '@lucide/svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import {
+		ArrowRight02Icon as ArrowRight,
+		Bookmark02Icon as Bookmark,
+		Tick02Icon as Check,
+		DicesIcon as Dices,
+		ImagesIcon as Images,
+		SparklesIcon as Sparkles
+	} from '@hugeicons/core-free-icons';
 	import { base } from '$app/paths';
 	import { STYLE_OPTIONS } from '$lib/studio/styles';
 	import type { StyleId } from '$lib/studio/types';
@@ -61,14 +69,15 @@
 <section class="style-widget" aria-labelledby="style-heading">
 	<div class="widget-head">
 		<div>
-			<div class="eyebrow"><Sparkles size={13} /> Creative direction</div>
+			<div class="eyebrow"><Icon icon={Sparkles} size={13} /> Creative direction</div>
 			<h3 id="style-heading">Choose a visual language</h3>
 			<p>Preview a style, or shortlist a few and use them together.</p>
 		</div>
 		<div class="head-actions">
-			<span class="style-count"><Images size={14} /> {STYLE_OPTIONS.length} styles</span>
+			<span class="style-count"><Icon icon={Images} size={14} /> {STYLE_OPTIONS.length} styles</span
+			>
 			<button class:rolling class="surprise" type="button" onclick={surpriseMe}>
-				<Dices size={15} />
+				<Icon icon={Dices} size={15} />
 				Shuffle
 			</button>
 		</div>
@@ -90,7 +99,7 @@
 						alt={`${previewStyle.name} infographic style preview`}
 					/>
 				{/key}
-				<span class="sample-badge"><Sparkles size={11} /> Generated style sample</span>
+				<span class="sample-badge"><Icon icon={Sparkles} size={11} /> Generated style sample</span>
 			</div>
 
 			<div class="preview-copy">
@@ -113,12 +122,12 @@
 						onclick={() => toggleShortlist(previewStyle.id)}
 						aria-pressed={previewIsShortlisted}
 					>
-						<Bookmark size={13} fill={previewIsShortlisted ? 'currentColor' : 'none'} />
+						<Icon icon={Bookmark} size={13} fill={previewIsShortlisted ? 'currentColor' : 'none'} />
 						{previewIsShortlisted ? 'Shortlisted' : 'Shortlist'}
 					</button>
 					<button class="use-style" type="button" onclick={() => onSelect([previewStyle.id])}>
 						Use this style
-						<Check size={13} strokeWidth={2.5} />
+						<Icon icon={Check} size={13} strokeWidth={2.5} />
 					</button>
 				</div>
 			</div>
@@ -145,9 +154,11 @@
 							decoding="async"
 						/>
 						{#if selected.includes(style.id)}
-							<span class="check"><Check size={12} strokeWidth={3} /></span>
+							<span class="check"><Icon icon={Check} size={12} strokeWidth={3} /></span>
 						{:else if shortlisted.includes(style.id)}
-							<span class="saved-marker"><Bookmark size={11} fill="currentColor" /></span>
+							<span class="saved-marker"
+								><Icon icon={Bookmark} size={11} fill="currentColor" /></span
+							>
 						{/if}
 					</span>
 					<span class="tile-copy">
@@ -161,7 +172,9 @@
 
 	{#if shortlistedStyles.length > 0}
 		<div class="shortlist-bar" aria-label="Shortlisted styles">
-			<span class="shortlist-label"><Bookmark size={13} fill="currentColor" /> Shortlist</span>
+			<span class="shortlist-label"
+				><Icon icon={Bookmark} size={13} fill="currentColor" /> Shortlist</span
+			>
 			<div class="shortlist-chips">
 				{#each shortlistedStyles as style (style.id)}
 					<button
@@ -177,7 +190,7 @@
 			<button class="continue-shortlist" type="button" onclick={() => onSelect(shortlisted)}>
 				Continue with {shortlistedStyles.length}
 				{shortlistedStyles.length === 1 ? 'style' : 'styles'}
-				<ArrowRight size={13} />
+				<Icon icon={ArrowRight} size={13} />
 			</button>
 		</div>
 	{/if}

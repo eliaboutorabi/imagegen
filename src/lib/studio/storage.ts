@@ -18,6 +18,7 @@ export const DEFAULT_SETTINGS: StudioSettings = {
 	plannerModel: DEFAULT_TEXT_MODEL,
 	imageModel: DEFAULT_IMAGE_MODEL,
 	quality: 'medium',
+	outputFormat: 'webp',
 	defaultBatchSize: 4,
 	autoGenerate: true,
 	generationWallWidth: 420,
@@ -36,6 +37,7 @@ export function loadSettings(): StudioSettings {
 		if (!imageQualities(settings.imageModel).includes(settings.quality)) {
 			settings.quality = 'high';
 		}
+		if (!['webp', 'png', 'jpeg'].includes(settings.outputFormat)) settings.outputFormat = 'webp';
 		return settings;
 	} catch {
 		return DEFAULT_SETTINGS;
