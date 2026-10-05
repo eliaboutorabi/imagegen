@@ -6,7 +6,6 @@
 	import {
 		ArrowDownToLineIcon as ArrowDownToLine,
 		ArrowRight02Icon as ArrowRight,
-		Tick02Icon as Check,
 		ChevronDownIcon as ChevronDown,
 		ChevronLeftIcon as ChevronLeft,
 		ChevronRightIcon as ChevronRight,
@@ -16,7 +15,6 @@
 		Home01Icon as Home,
 		Image02Icon as ImageIcon,
 		ImagePlusIcon as ImagePlus,
-		KeyRoundIcon as KeyRound,
 		Loading03Icon as LoaderCircle,
 		Menu01Icon as Menu,
 		MinusSignIcon as Minus,
@@ -1622,41 +1620,43 @@
 					clampWallWidth();
 				}}
 				aria-expanded={sidebarOpen}
-				aria-label="Toggle navigation"><Icon icon={Menu} size={19} /></button
+				aria-label="Toggle navigation"
+				title="Toggle navigation"><Icon icon={Menu} size={18} /></button
 			>
-			<span class="workspace-label">Creative workspace</span>
-		</div>
-		<div class="project-switcher">
-			<button
-				class="project-title"
-				type="button"
-				onclick={() => (projectMenuOpen = !projectMenuOpen)}
-				aria-expanded={projectMenuOpen}
-			>
-				<span>{project.topic || 'Untitled infographic'}</span>
-				<Icon icon={ChevronDown} size={13} />
-			</button>
-			{#if projectMenuOpen}
-				<div class="project-menu">
-					<div>
-						<strong>{project.topic || 'Untitled infographic'}</strong><small>Current canvas</small>
+			<div class="project-switcher">
+				<button
+					class="project-title"
+					type="button"
+					onclick={() => (projectMenuOpen = !projectMenuOpen)}
+					aria-expanded={projectMenuOpen}
+					title="Canvas options"
+				>
+					<span>{project.topic || 'Untitled infographic'}</span>
+					<Icon icon={ChevronDown} size={13} />
+				</button>
+				{#if projectMenuOpen}
+					<div class="project-menu">
+						<div>
+							<strong>{project.topic || 'Untitled infographic'}</strong><small>Current canvas</small
+							>
+						</div>
+						<button type="button" onclick={startNewCanvas}
+							><Icon icon={Plus} size={14} /> New blank canvas</button
+						>
+						<button
+							type="button"
+							onclick={() => {
+								wallOpen = true;
+								projectMenuOpen = false;
+							}}><Icon icon={GalleryHorizontalEnd} size={14} /> Open generation wall</button
+						>
+						<button class:armed={resetArmed} class="danger" type="button" onclick={requestReset}
+							><Icon icon={Trash2} size={14} />
+							{resetArmed ? 'Confirm deletion' : 'Delete canvas'}</button
+						>
 					</div>
-					<button type="button" onclick={startNewCanvas}
-						><Icon icon={Plus} size={14} /> New blank canvas</button
-					>
-					<button
-						type="button"
-						onclick={() => {
-							wallOpen = true;
-							projectMenuOpen = false;
-						}}><Icon icon={GalleryHorizontalEnd} size={14} /> Open generation wall</button
-					>
-					<button class:armed={resetArmed} class="danger" type="button" onclick={requestReset}
-						><Icon icon={Trash2} size={14} />
-						{resetArmed ? 'Confirm deletion' : 'Delete canvas'}</button
-					>
-				</div>
-			{/if}
+				{/if}
+			</div>
 		</div>
 		<div class="topbar-actions">
 			{#if activeJobs > 0}<span class="job-pill"
@@ -1670,21 +1670,12 @@
 				type="button"
 				onclick={() => (wallOpen = !wallOpen)}
 				aria-label="Toggle generation wall"
+				aria-pressed={wallOpen}
+				title={wallOpen ? 'Hide generation wall' : 'Show generation wall'}
 				><Icon icon={GalleryHorizontalEnd} size={16} />{#if completedJobs}<span
 						>{completedJobs}</span
 					>{/if}</button
 			>
-			<button
-				class:connected={Boolean(settings.apiKey)}
-				class="connection"
-				type="button"
-				onclick={() => (settingsOpen = true)}
-			>
-				{#if settings.apiKey}<Icon icon={Check} size={12} strokeWidth={3} /> Connected{:else}<Icon
-						icon={KeyRound}
-						size={13}
-					/> Demo mode{/if}
-			</button>
 			<button
 				class="theme-button"
 				type="button"
@@ -1700,7 +1691,9 @@
 				class="settings-button"
 				type="button"
 				onclick={() => (settingsOpen = true)}
-				aria-label="Settings"><Icon icon={Settings2} size={16} /></button
+				aria-label="Settings"
+				title={settings.apiKey ? 'Settings · OpenAI connected' : 'Settings · Connect OpenAI'}
+				><Icon icon={Settings2} size={16} /></button
 			>
 		</div>
 	</header>

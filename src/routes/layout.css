@@ -1675,7 +1675,7 @@ select:focus-visible {
 	.wall-pane {
 		position: fixed;
 		z-index: 35;
-		top: 56px;
+		top: var(--topbar-height);
 		right: 0;
 		bottom: 0;
 		width: min(390px, 92vw);
@@ -1812,20 +1812,17 @@ select:focus-visible {
 
 html[data-theme='dark'] body,
 html[data-theme='dark'] .studio-shell {
-	background: #0e0f11;
-}
-html[data-theme='dark'] .topbar {
-	border-color: #2d2e31;
-	background: rgb(16 17 19 / 88%);
-	box-shadow: 0 10px 35px rgb(0 0 0 / 16%);
+	background: var(--page);
 }
 html[data-theme='dark'] .menu-button:hover,
 html[data-theme='dark'] .settings-button:hover,
 html[data-theme='dark'] .theme-button:hover,
 html[data-theme='dark'] .wall-toggle:hover,
 html[data-theme='dark'] .project-title:hover,
-html[data-theme='dark'] .project-title[aria-expanded='true'] {
-	background: #242529;
+html[data-theme='dark'] .project-title[aria-expanded='true'],
+html[data-theme='dark'] .sidebar-head button:hover,
+html[data-theme='dark'] .sidebar-action:hover {
+	background: var(--surface);
 }
 html[data-theme='dark'] .project-menu,
 html[data-theme='dark'] .studio-sidebar,
@@ -1858,26 +1855,22 @@ html[data-theme='dark'] .segmented button.active,
 html[data-theme='dark'] .palette,
 html[data-theme='dark'] .mobile-wall-close {
 	color: var(--ink);
-	background: #1b1c1f;
+	background: var(--panel);
 }
 html[data-theme='dark'] .studio-sidebar nav > button:hover,
 html[data-theme='dark'] .studio-sidebar nav > button.active,
 html[data-theme='dark'] .canvas-history > button:hover,
 html[data-theme='dark'] .canvas-history > button.active {
 	color: var(--ink);
-	background: #28292d;
-	box-shadow: 0 7px 20px rgb(0 0 0 / 22%);
+	background: var(--surface);
+	box-shadow: none;
 }
 html[data-theme='dark'] .conversation {
-	background: #121315;
+	background: var(--page);
 }
 html[data-theme='dark'] .conversation::before {
 	background-image: radial-gradient(#3a3b3f 0.65px, transparent 0.65px);
 	opacity: 0.22;
-}
-html[data-theme='dark'] .composer-wrap {
-	background: rgb(17 18 20 / 92%);
-	box-shadow: 0 -18px 45px rgb(0 0 0 / 15%);
 }
 html[data-theme='dark'] input,
 html[data-theme='dark'] select {
@@ -1885,30 +1878,30 @@ html[data-theme='dark'] select {
 }
 html[data-theme='dark'] .starter-prompts button,
 html[data-theme='dark'] .mini-avatar {
-	background: rgb(29 30 33 / 82%);
+	background: var(--panel);
 }
 html[data-theme='dark'] .style-card:hover,
 html[data-theme='dark'] .style-card.selected {
-	border-color: #424348;
-	background: #232428;
-	box-shadow: 0 12px 30px rgb(0 0 0 / 25%);
+	border-color: var(--accent);
+	background: var(--surface);
+	box-shadow: none;
 }
 html[data-theme='dark'] .style-card {
-	border-color: #34353a;
-	background: #1f2023;
+	border-color: var(--line);
+	background: var(--panel);
 }
 html[data-theme='dark'] .style-card .swatches i {
-	border-color: #1f2023;
+	border-color: var(--panel);
 }
 html[data-theme='dark'] .style-card:hover .swatches i,
 html[data-theme='dark'] .style-card.selected .swatches i {
-	border-color: #232428;
+	border-color: var(--surface);
 }
 html[data-theme='dark'] .batch-widget,
 html[data-theme='dark'] .direction-skeleton {
-	border-color: #36373b;
-	background: linear-gradient(145deg, #202125, #18191c);
-	box-shadow: 0 18px 48px rgb(0 0 0 / 22%);
+	border-color: var(--line);
+	background: var(--panel);
+	box-shadow: none;
 }
 html[data-theme='dark'] .skeleton-lines i {
 	background: linear-gradient(90deg, #303136, #44454a, #303136);
@@ -1926,41 +1919,48 @@ html[data-theme='dark'] .error-bubble button {
 html[data-theme='dark'] .batch-prompt textarea {
 	border-color: var(--line);
 	color: var(--ink-2);
-	background: #17181b;
-	box-shadow: inset 0 1px 2px rgb(0 0 0 / 24%);
+	background: var(--page);
+	box-shadow: none;
 }
 html[data-theme='dark'] .batch-option select {
 	border-color: var(--line);
 	color: var(--ink-2);
-	background: #1b1c1f;
+	background: var(--panel);
 }
 html[data-theme='dark'] .wall {
-	border-color: #303135;
-	background: #17181a;
+	border-color: var(--line);
+	background: var(--wall);
 }
 html[data-theme='dark'] .wall-header {
-	background: rgb(23 24 26 / 82%);
+	background: var(--wall);
 }
 html[data-theme='dark'] .live,
 html[data-theme='dark'] .empty-orbit {
-	background: rgb(31 32 35 / 78%);
+	border-color: var(--line);
+	color: var(--muted);
+	background: var(--panel);
+}
+html[data-theme='dark'] .live.rendering {
+	border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+	color: var(--accent);
+	background: color-mix(in srgb, var(--accent) 8%, var(--panel));
 }
 html[data-theme='dark'] .timeline-line {
-	background: #343539;
+	background: var(--line);
 }
 html[data-theme='dark'] .timeline-dot {
-	border-color: #17181a;
-	background: #66676c;
-	box-shadow: 0 0 0 1px #3f4044;
+	border-color: var(--wall);
+	background: var(--muted);
+	box-shadow: 0 0 0 1px var(--line);
 }
 html[data-theme='dark'] .image-frame,
 html[data-theme='dark'] .image-frame.has-image {
-	border-color: #343539;
-	background: #101113;
-	box-shadow: 0 14px 34px rgb(0 0 0 / 28%);
+	border-color: var(--line);
+	background: var(--sidebar);
+	box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
 }
 html[data-theme='dark'] .generating-state {
-	background: linear-gradient(145deg, #25262a, #1a1b1e);
+	background: linear-gradient(145deg, var(--surface), var(--panel));
 }
 html[data-theme='dark'] .shimmer {
 	background: linear-gradient(90deg, #303136, #494a4f, #303136);
@@ -1969,10 +1969,10 @@ html[data-theme='dark'] .shimmer {
 html[data-theme='dark'] .render-orbit,
 html[data-theme='dark'] .prompt-only-state,
 html[data-theme='dark'] .prompt-only-state button {
-	background: #242529;
+	background: var(--surface);
 }
 html[data-theme='dark'] .asset-menu {
-	background: rgb(31 32 35 / 97%);
+	background: var(--panel);
 	box-shadow: 0 22px 58px rgb(0 0 0 / 48%);
 }
 html[data-theme='dark'] .asset-menu button {
@@ -1983,15 +1983,15 @@ html[data-theme='dark'] .prompt-inspector-backdrop {
 	background: rgb(5 6 7 / 64%);
 }
 html[data-theme='dark'] .settings-panel input:disabled {
-	background: #232428;
+	background: var(--surface);
 }
 html[data-theme='dark'] .settings-panel .privacy-note {
-	color: #91b9a1;
-	background: #18251d;
+	color: var(--ink-2);
+	background: var(--surface);
 }
 html[data-theme='dark'] .segmented,
 html[data-theme='dark'] .density-dots button {
-	background: #25262a;
+	background: var(--surface);
 }
 html[data-theme='dark'] .segmented button.active {
 	box-shadow: 0 4px 14px rgb(0 0 0 / 22%);
@@ -2002,16 +2002,16 @@ html[data-theme='dark'] .generate-batch,
 html[data-theme='dark'] .use-direction,
 html[data-theme='dark'] .settings-panel .save,
 html[data-theme='dark'] .user-bubble {
-	color: #111214;
-	background: #f1efe9;
+	color: var(--page);
+	background: var(--ink);
 }
 html[data-theme='dark'] .check,
 html[data-theme='dark'] .batch-icon,
 html[data-theme='dark'] .settings-icon,
 html[data-theme='dark'] .size-presets button.active {
-	color: #111214;
-	background: #f1efe9;
+	color: var(--page);
+	background: var(--ink);
 }
 html[data-theme='dark'] .wall-resizer i {
-	box-shadow: 0 0 0 4px rgb(15 16 18 / 82%);
+	box-shadow: 0 0 0 4px var(--wall);
 }

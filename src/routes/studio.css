@@ -1,5 +1,6 @@
 /* Desktop workspace system. Component styles consume these theme tokens. */
 :root {
+	--topbar-height: 48px;
 	--page: #fcfcfa;
 	--panel: #ffffff;
 	--sidebar: #f3f4f0;
@@ -14,17 +15,19 @@
 	font-size: 15px;
 }
 html[data-theme='dark'] {
-	--page: #151917;
-	--panel: #1c211e;
-	--sidebar: #111512;
-	--wall: #131814;
-	--ink: #ecf1eb;
-	--ink-2: #c0ccc2;
-	--muted: #8b9a8f;
-	--line: #303a32;
-	--line-soft: #262f28;
-	--surface: #263028;
-	--accent: #9bd7b6;
+	--page: #19191b;
+	--panel: #222225;
+	--sidebar: #141416;
+	--wall: #161618;
+	--ink: #eeeef0;
+	--ink-2: #c5c5cc;
+	--muted: #a0a0aa;
+	--line: #35353b;
+	--line-soft: #2b2b30;
+	--surface: #2b2b30;
+	--accent: #b9b7ef;
+	color: var(--ink);
+	background: var(--page);
 }
 
 .concept-card,
@@ -73,37 +76,56 @@ textarea:focus-visible {
 	scrollbar-width: thin;
 	scrollbar-color: var(--line) transparent;
 }
-.topbar,
-html[data-theme='dark'] .topbar {
-	height: 64px;
-	min-height: 64px;
-	flex-basis: 64px;
+.topbar {
+	height: var(--topbar-height);
+	min-height: var(--topbar-height);
+	flex-basis: var(--topbar-height);
 	background: var(--page);
-	padding: 0 24px;
-	grid-template-columns: 1fr auto 1fr;
+	padding: 0 16px;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 16px;
+	border-color: var(--line-soft);
+	box-shadow: none;
 	backdrop-filter: none;
 }
-.workspace-label {
-	color: var(--muted);
-	font-size: 12px;
-	letter-spacing: 0.02em;
+.topbar-left {
+	min-width: 0;
+	gap: 6px;
+}
+.project-switcher {
+	min-width: 0;
+	justify-content: flex-start;
 }
 .project-title {
-	height: 40px;
-	max-width: 340px;
+	height: 32px;
+	max-width: min(480px, 100%);
 	font-size: 14px;
 	font-weight: 550;
 }
+.project-title svg {
+	flex-shrink: 0;
+	color: var(--muted);
+}
+.project-menu {
+	left: 0;
+	transform: none;
+	max-width: calc(100vw - 72px);
+}
 .topbar-actions {
-	gap: 6px;
+	gap: 4px;
 }
 .menu-button,
 .settings-button,
 .theme-button,
 .wall-toggle {
-	height: 36px;
-	width: 36px;
-	border-radius: 10px;
+	height: 32px;
+	width: 32px;
+	flex-shrink: 0;
+	border-radius: 8px;
+}
+.wall-toggle[aria-pressed='true'] {
+	color: var(--ink-2);
+	background: var(--surface);
 }
 .wall-toggle {
 	display: grid;
@@ -143,12 +165,13 @@ html[data-theme='dark'] .connection.connected {
 .studio-sidebar,
 html[data-theme='dark'] .studio-sidebar {
 	background: var(--sidebar);
-	padding: 20px 16px 14px;
+	padding: 8px 16px 14px;
 	box-shadow: none;
 }
 .sidebar-head {
-	height: 40px;
-	margin-bottom: 24px;
+	height: 32px;
+	flex-shrink: 0;
+	margin-bottom: 20px;
 }
 .sidebar-new,
 html[data-theme='dark'] .sidebar-new {
@@ -478,8 +501,7 @@ html[data-theme='dark'] .generate-batch {
 	font-size: 14px;
 	font-weight: 550;
 }
-.composer-wrap,
-html[data-theme='dark'] .composer-wrap {
+.composer-wrap {
 	padding: 18px 32px 14px;
 	background: var(--page);
 	flex-shrink: 0;
@@ -506,7 +528,7 @@ html[data-theme='dark'] .project-menu {
 	.studio-shell {
 		display: grid;
 		grid-template-columns: 0 minmax(0, 1fr);
-		grid-template-rows: 64px minmax(0, 1fr);
+		grid-template-rows: var(--topbar-height) minmax(0, 1fr);
 	}
 	.studio-shell.sidebar-visible {
 		grid-template-columns: 236px minmax(0, 1fr);
@@ -538,20 +560,11 @@ html[data-theme='dark'] .project-menu {
 	}
 }
 @media (max-width: 1400px) {
-	.workspace-label {
-		display: none;
-	}
 	.chat-column {
 		padding: 30px 24px 40px;
 	}
 	.composer-wrap {
 		padding: 12px 24px 18px;
-	}
-	.topbar {
-		padding: 0 16px;
-	}
-	.project-title {
-		max-width: 230px;
 	}
 }
 @media (max-width: 999px) {
@@ -564,11 +577,22 @@ html[data-theme='dark'] .project-menu {
 	.wall-pane {
 		z-index: 25;
 	}
-	.workspace-label {
-		display: none;
-	}
 	.connection {
 		display: none;
+	}
+}
+@media (max-width: 650px) {
+	.topbar {
+		padding: 0 10px;
+		gap: 8px;
+	}
+	.project-switcher,
+	.project-title {
+		display: flex;
+	}
+	.project-title {
+		font-size: 13px;
+		padding: 0 6px;
 	}
 }
 @media (prefers-reduced-motion: reduce) {

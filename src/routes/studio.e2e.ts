@@ -404,7 +404,7 @@ test('browser harness streams directions, renders, edits references and preserve
 	await page.getByRole('button', { name: 'Use dark mode' }).click();
 	await expect(page.locator('.concept-card').first()).toHaveCSS(
 		'background-color',
-		'rgb(28, 33, 30)'
+		'rgb(34, 34, 37)'
 	);
 	await page.screenshot({ path: '/tmp/infogen-workspace-dark.png', fullPage: true });
 	await page
@@ -602,6 +602,119 @@ test('desktop shell is theme-aware and panels collapse cleanly', async ({ page }
 	await expect
 		.poll(async () => (await page.locator('.conversation').boundingBox())?.width ?? 0)
 		.toBeGreaterThanOrEqual(440);
+});
+
+for (const width of [1100, 1280, 1600]) {
+	test(`theme changes preserve desktop geometry at ${width}px`, async ({ page }) => {
+		const requests = await mockStudio(page);
+		await page.setViewportSize({ width, height: 900 });
+		await page.goto('/');
+		const composer = page.getByRole('textbox', { name: 'Message', exact: true });
+		await composer.fill('A draft that should stay exactly where I left it.\nWith a second line.');
+		await expect(page.locator('.topbar')).toHaveCSS('height', '48px');
+		const selectors = [
+			'.topbar',
+			'.topbar-left',
+			'.project-title',
+			'.topbar-actions',
+			'.workspace',
+			'.conversation-scroll',
+			'.chat-column',
+			'.composer-wrap',
+			'.studio-composer',
+			'.composer-toolbar',
+			'.wall',
+			'.wall-header'
+		];
+		const geometry = () =>
+			page.evaluate(
+				(selectors) =>
+					selectors.map((selector) => {
+						const element = document.querySelector(selector)!;
+						const { x, y, width, height } = element.getBoundingClientRect();
+						return { selector, x, y, width, height, scrollTop: element.scrollTop };
+					}),
+				selectors
+			);
+		const light = await geometry();
+		await page.getByRole('button', { name: 'Use dark mode' }).click();
+		await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+		expect(await geometry()).toEqual(light);
+		await expect(composer).toHaveValue(
+			'A draft that should stay exactly where I left it.\nWith a second line.'
+		);
+		await expect(page.locator('.studio-shell')).toHaveCSS('background-color', 'rgb(25, 25, 27)');
+		await expect(page.locator('.wall')).toHaveCSS('background-color', 'rgb(22, 22, 24)');
+		if (width === 1600) await page.screenshot({ path: '/tmp/infogen-theme-refinement-dark.png' });
+		await page.getByRole('button', { name: 'Use light mode' }).click();
+		expect(await geometry()).toEqual(light);
+		// Verify an unconstrained composer too, with both side panels collapsed.
+		if (width >= 1180) await page.getByRole('button', { name: 'Toggle navigation' }).click();
+		await page.getByRole('button', { name: 'Toggle generation wall' }).click();
+		const expanded = await geometry();
+		await page.getByRole('button', { name: 'Use dark mode' }).click();
+		expect(await geometry()).toEqual(expanded);
+		expect(requests).toHaveLength(0);
+	});
+}
+
+test('compact header keeps canvas options and settings accessible with a long title', async ({
+	page
+}) => {
+	await mockStudio(page);
+	await page.goto('/');
+	const title =
+		'Discuss only: A very long canvas title about visual storytelling and research for complex infographics';
+	await page.getByRole('textbox', { name: 'Message', exact: true }).fill(title);
+	await page.getByRole('button', { name: 'Send message' }).click();
+	await expect(page.getByRole('button', { name: 'Send message' })).toBeVisible();
+	await expect(page.locator('.project-title')).toHaveText(title);
+	await page.getByRole('button', { name: 'Toggle navigation' }).click();
+	await page.setViewportSize({ width: 1100, height: 800 });
+	await page.locator('.project-title').click();
+	await expect(page.locator('.project-menu')).toBeVisible();
+	const menu = await page.locator('.project-menu').boundingBox();
+	expect(menu!.x).toBeGreaterThanOrEqual(0);
+	expect(menu!.x + menu!.width).toBeLessThanOrEqual(1100);
+	await page.locator('.project-title').click();
+	await page.getByRole('button', { name: 'Settings', exact: true }).click();
+	await expect(page.getByRole('dialog', { name: 'Studio settings' })).toBeVisible();
+	const header = page.locator('.topbar');
+	expect(await header.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+});
+
+test('switching themes preserves scrolled conversation and timeline positions', async ({
+	page
+}) => {
+	await mockStudio(page);
+	await page.setViewportSize({ width: 1280, height: 720 });
+	await page.goto('/');
+	await page
+		.getByRole('textbox', { name: 'Message', exact: true })
+		.fill('Create three distinct directions');
+	await page.getByRole('button', { name: 'Send message' }).click();
+	await expect(page.locator('img[alt^="Generated infographic:"]')).toHaveCount(3);
+	await expect(page.getByRole('button', { name: 'Send message' })).toBeVisible();
+	const scrollers = page.locator('.conversation-scroll, .wall-scroll');
+	await scrollers.evaluateAll((elements) =>
+		elements.forEach((element) => {
+			element.scrollTop = 120;
+		})
+	);
+	const positions = () =>
+		scrollers.evaluateAll((elements) =>
+			elements.map((element) => ({
+				scrollTop: element.scrollTop,
+				scrollHeight: element.scrollHeight,
+				clientHeight: element.clientHeight
+			}))
+		);
+	const before = await positions();
+	expect(before.every((position) => position.scrollTop > 0)).toBe(true);
+	await page.getByRole('button', { name: 'Use dark mode' }).click();
+	expect(await positions()).toEqual(before);
+	await page.getByRole('button', { name: 'Use light mode' }).click();
+	expect(await positions()).toEqual(before);
 });
 
 test('composer controls persist and apply to real generation requests', async ({ page }) => {
