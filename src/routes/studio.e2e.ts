@@ -342,6 +342,149 @@ async function mockStudio(page: Page, theme = 'light') {
 	return requests;
 }
 
+test.describe('phone workspace', () => {
+	test.use({ isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+	for (const width of [320, 390, 430]) {
+		for (const theme of ['light', 'dark']) {
+			test(`${width}px ${theme} keeps the header and composer within reach`, async ({ page }) => {
+				const requests = await mockStudio(page, theme);
+				await page.setViewportSize({ width, height: width === 320 ? 568 : 844 });
+				await page.goto('/');
+				await expect(page.getByRole('complementary', { name: 'Generation timeline' })).toBeHidden();
+				await expect(page.getByRole('complementary', { name: 'Studio navigation' })).toBeHidden();
+				for (const selector of ['.topbar', '.composer-toolbar', '.studio-composer']) {
+					expect(
+						await page
+							.locator(selector)
+							.evaluate((element) => element.scrollWidth <= element.clientWidth)
+					).toBe(true);
+					const rect = await page.locator(selector).boundingBox();
+					expect(rect!.x).toBeGreaterThanOrEqual(0);
+					expect(rect!.x + rect!.width).toBeLessThanOrEqual(width);
+					expect(rect!.y + rect!.height).toBeLessThanOrEqual(width === 320 ? 568 : 844);
+				}
+				await page.screenshot({ path: `/tmp/infogen-phone-${width}-${theme}.png` });
+				const composer = page.getByRole('textbox', { name: 'Message', exact: true });
+				await composer.fill('An idea');
+				await composer.press('Enter');
+				await expect(composer).toHaveValue('An idea\n');
+				await page.getByRole('button', { name: /^Text model:/ }).click();
+				await expect(page.getByRole('dialog', { name: 'Choose text model' })).toBeVisible();
+				await page.getByRole('button', { name: 'Close composer menu' }).click();
+				await page.getByRole('button', { name: 'Image settings', exact: true }).click();
+				const dialog = page.getByRole('dialog', { name: 'Image settings' });
+				const bounds = await dialog.boundingBox();
+				expect(bounds!.y).toBeGreaterThanOrEqual(0);
+				expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(width === 320 ? 568 : 844);
+				await page.getByRole('button', { name: 'Close composer menu' }).click();
+				await page.getByRole('button', { name: 'Settings', exact: true }).click();
+				await expect(page.getByRole('dialog', { name: 'Studio settings' })).toBeVisible();
+				await expect(page.getByRole('button', { name: 'Save settings' })).toBeInViewport();
+				await page.getByRole('button', { name: 'Close settings' }).click();
+				await page.getByRole('button', { name: 'Toggle navigation' }).click();
+				await expect(page.getByRole('complementary', { name: 'Studio navigation' })).toBeVisible();
+				await page
+					.getByRole('button', { name: theme === 'dark' ? 'Use light mode' : 'Use dark mode' })
+					.click();
+				await page
+					.locator('.sidebar-head')
+					.getByRole('button', { name: 'Close navigation' })
+					.click();
+				await expect(composer).toHaveValue('An idea\n');
+				expect(requests).toHaveLength(0);
+			});
+		}
+	}
+
+	test('phone can browse styles, render, inspect images and read a full prompt', async ({
+		page
+	}) => {
+		await mockStudio(page);
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.goto('/');
+		await page
+			.getByRole('textbox', { name: 'Message', exact: true })
+			.fill('Explain how urban trees cool cities.');
+		await page.getByRole('button', { name: 'Send message' }).click();
+		await expect(page.getByRole('heading', { name: 'Choose a visual language' })).toBeVisible();
+		await page.screenshot({ path: '/tmp/infogen-phone-styles.png' });
+		const grid = page.locator('.style-grid');
+		expect(await grid.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(
+			true
+		);
+		await page.getByRole('button', { name: 'Use this style', exact: true }).click();
+		await expect(page.getByRole('heading', { name: 'Tune the brief' })).toBeVisible();
+		expect(
+			await page
+				.locator('.brief-widget')
+				.evaluate((element) => element.scrollWidth <= element.clientWidth)
+		).toBe(true);
+		await page.getByRole('button', { name: 'Generate three directions', exact: true }).click();
+		await expect(page.locator('img[alt^="Generated infographic:"]')).toHaveCount(3);
+		await expect(page.getByRole('button', { name: 'Send message' })).toBeVisible();
+		const wall = page.getByRole('complementary', { name: 'Generation timeline' });
+		await expect(wall).toBeVisible();
+		expect((await wall.boundingBox())!.width).toBe(390);
+		await page.screenshot({ path: '/tmp/infogen-phone-timeline.png' });
+		await wall.getByRole('button', { name: 'Open Urban direction 3', exact: true }).click();
+		const viewer = page.getByRole('dialog', { name: 'Image viewer' });
+		await expect(viewer).toBeVisible();
+		for (const name of [
+			'Close image',
+			'Zoom in',
+			'Fit image',
+			'Copy prompt',
+			'Regenerate',
+			'Reference',
+			'Download'
+		]) {
+			await expect(viewer.getByRole('button', { name, exact: true })).toBeInViewport();
+		}
+		expect(
+			await page
+				.locator('.lightbox-toolbar')
+				.evaluate((element) => element.scrollWidth <= element.clientWidth)
+		).toBe(true);
+		await page.screenshot({ path: '/tmp/infogen-phone-viewer.png' });
+		await viewer.getByRole('button', { name: 'Zoom in', exact: true }).click();
+		await expect(viewer.getByRole('button', { name: 'Fit image', exact: true })).toHaveText('125%');
+		await viewer.getByRole('button', { name: 'Close image', exact: true }).click();
+		await page.getByRole('button', { name: 'Close generation wall', exact: true }).click();
+		await page.getByRole('button', { name: 'Read full prompt' }).first().click();
+		const prompt = page.getByRole('dialog', { name: 'Full image prompt' });
+		await expect(prompt).toBeVisible();
+		await expect(prompt.getByRole('button', { name: 'Close prompt' })).toBeInViewport();
+		expect((await prompt.boundingBox())!.width).toBeLessThanOrEqual(390);
+		await prompt.getByRole('button', { name: 'Close prompt' }).click();
+		await page.getByRole('button', { name: 'Toggle generation wall' }).click();
+		await wall.getByRole('button', { name: 'Open Urban direction 3', exact: true }).click();
+		await viewer.getByRole('button', { name: 'Reference', exact: true }).click();
+		await expect(viewer).toBeHidden();
+		await expect(wall).toBeHidden();
+		await expect(page.locator('.composer-references img')).toHaveCount(1);
+	});
+
+	test('phone composer stays usable with a keyboard-sized viewport', async ({ page }) => {
+		const requests = await mockStudio(page);
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.goto('/');
+		const composer = page.getByRole('textbox', { name: 'Message', exact: true });
+		await composer.fill('Keep this draft while typing.');
+		await page.setViewportSize({ width: 390, height: 400 });
+		await expect(page.getByRole('button', { name: 'Send message' })).toBeInViewport();
+		await expect(composer).toBeInViewport();
+		await expect(page.locator('.studio-shell')).toHaveCSS('height', '400px');
+		await page.getByRole('button', { name: 'Image settings', exact: true }).click();
+		const menu = page.getByRole('dialog', { name: 'Image settings' });
+		const rect = await menu.boundingBox();
+		expect(rect!.y + rect!.height).toBeLessThanOrEqual(400);
+		await page.getByRole('button', { name: 'Close composer menu' }).click();
+		await page.setViewportSize({ width: 390, height: 844 });
+		await expect(composer).toHaveValue('Keep this draft while typing.');
+		expect(requests).toHaveLength(0);
+	});
+});
+
 test('browser harness streams directions, renders, edits references and preserves history', async ({
 	page
 }) => {
@@ -404,7 +547,7 @@ test('browser harness streams directions, renders, edits references and preserve
 	await page.getByRole('button', { name: 'Use dark mode' }).click();
 	await expect(page.locator('.concept-card').first()).toHaveCSS(
 		'background-color',
-		'rgb(34, 34, 37)'
+		'rgb(34, 34, 34)'
 	);
 	await page.screenshot({ path: '/tmp/infogen-workspace-dark.png', fullPage: true });
 	await page
@@ -604,6 +747,87 @@ test('desktop shell is theme-aware and panels collapse cleanly', async ({ page }
 		.toBeGreaterThanOrEqual(440);
 });
 
+test('creator credit opens from the header and dismisses without moving the layout', async ({
+	page
+}) => {
+	const requests = await mockStudio(page);
+	await page.goto('/');
+	const trigger = page.getByRole('button', { name: 'About the creator' });
+	const credit = page.getByRole('note', { name: 'Creator credit' });
+	const before = await page.locator('.topbar').boundingBox();
+	await expect(credit).toBeHidden();
+	await trigger.click();
+	await expect(credit).toHaveText('Built by Eli Aboutorabi');
+	await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+	expect(await page.locator('.topbar').boundingBox()).toEqual(before);
+	await trigger.click();
+	await expect(credit).toBeHidden();
+	await trigger.press('Enter');
+	await expect(credit).toBeVisible();
+	await trigger.press('Escape');
+	await expect(credit).toBeHidden();
+	await expect(trigger).toBeFocused();
+	await expect(page.getByRole('button', { name: 'Toggle navigation' })).toHaveAttribute(
+		'aria-expanded',
+		'true'
+	);
+	await trigger.click();
+	await page.getByRole('textbox', { name: 'Message', exact: true }).click();
+	await expect(credit).toBeHidden();
+	await page.getByRole('button', { name: 'Use dark mode' }).click();
+	await trigger.click();
+	await expect(credit).toHaveCSS('background-color', 'rgb(34, 34, 34)');
+	await page.screenshot({ path: '/tmp/infogen-creator-credit.png' });
+	await trigger.press('Tab');
+	await expect(credit).toBeHidden();
+	expect(requests).toHaveLength(0);
+});
+
+for (const theme of ['light', 'dark']) {
+	test(`${theme} theme uses neutral surfaces and accents`, async ({ page }) => {
+		const requests = await mockStudio(page, theme);
+		await page.goto('/');
+		await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+		const expectNeutral = async (selectors: string[]) => {
+			const colors = await page.evaluate(
+				(selectors) =>
+					selectors.flatMap((selector) => {
+						const style = getComputedStyle(document.querySelector(selector)!);
+						return ['color', 'background-color', 'border-top-color'].map((property) => ({
+							selector,
+							property,
+							value: style.getPropertyValue(property)
+						}));
+					}),
+				selectors
+			);
+			for (const { selector, property, value } of colors) {
+				const channels = value
+					.match(/[\d.]+/g)!
+					.slice(0, 3)
+					.map(Number);
+				expect(new Set(channels).size, `${selector} ${property}: ${value}`).toBe(1);
+			}
+		};
+		await expectNeutral([
+			'.studio-shell',
+			'.studio-sidebar',
+			'.wall',
+			'.studio-composer',
+			'.welcome-eyebrow',
+			'.assistant-copy h1 em',
+			'.sidebar-mode > span',
+			'.sidebar-mode > span i',
+			'.live i'
+		]);
+		await page.screenshot({ path: `/tmp/infogen-neutral-${theme}.png` });
+		await page.getByRole('button', { name: 'Settings', exact: true }).click();
+		await expect(page.getByRole('dialog', { name: 'Studio settings' })).toBeVisible();
+		await expectNeutral(['.privacy-note']);
+		expect(requests).toHaveLength(0);
+	});
+}
+
 for (const width of [1100, 1280, 1600]) {
 	test(`theme changes preserve desktop geometry at ${width}px`, async ({ page }) => {
 		const requests = await mockStudio(page);
@@ -643,8 +867,8 @@ for (const width of [1100, 1280, 1600]) {
 		await expect(composer).toHaveValue(
 			'A draft that should stay exactly where I left it.\nWith a second line.'
 		);
-		await expect(page.locator('.studio-shell')).toHaveCSS('background-color', 'rgb(25, 25, 27)');
-		await expect(page.locator('.wall')).toHaveCSS('background-color', 'rgb(22, 22, 24)');
+		await expect(page.locator('.studio-shell')).toHaveCSS('background-color', 'rgb(25, 25, 25)');
+		await expect(page.locator('.wall')).toHaveCSS('background-color', 'rgb(22, 22, 22)');
 		if (width === 1600) await page.screenshot({ path: '/tmp/infogen-theme-refinement-dark.png' });
 		await page.getByRole('button', { name: 'Use light mode' }).click();
 		expect(await geometry()).toEqual(light);

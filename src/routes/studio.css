@@ -1,31 +1,31 @@
 /* Desktop workspace system. Component styles consume these theme tokens. */
 :root {
 	--topbar-height: 48px;
-	--page: #fcfcfa;
+	--page: #fafafa;
 	--panel: #ffffff;
-	--sidebar: #f3f4f0;
-	--wall: #f5f6f2;
-	--ink: #202724;
-	--ink-2: #48524c;
-	--muted: #737d76;
-	--line: #dfe5df;
-	--line-soft: #edf0eb;
-	--surface: #edf1eb;
-	--accent: #387964;
+	--sidebar: #f2f2f2;
+	--wall: #f5f5f5;
+	--ink: #202020;
+	--ink-2: #4b4b4b;
+	--muted: #737373;
+	--line: #e0e0e0;
+	--line-soft: #ededed;
+	--surface: #eeeeee;
+	--accent: #202020;
 	font-size: 15px;
 }
 html[data-theme='dark'] {
-	--page: #19191b;
-	--panel: #222225;
-	--sidebar: #141416;
-	--wall: #161618;
-	--ink: #eeeef0;
-	--ink-2: #c5c5cc;
-	--muted: #a0a0aa;
-	--line: #35353b;
-	--line-soft: #2b2b30;
-	--surface: #2b2b30;
-	--accent: #b9b7ef;
+	--page: #191919;
+	--panel: #222222;
+	--sidebar: #141414;
+	--wall: #161616;
+	--ink: #eeeeee;
+	--ink-2: #c7c7c7;
+	--muted: #a3a3a3;
+	--line: #373737;
+	--line-soft: #2c2c2c;
+	--surface: #2c2c2c;
+	--accent: #dedede;
 	color: var(--ink);
 	background: var(--page);
 }

@@ -37,7 +37,11 @@ export function getViewerMinimap(
 	panY: number
 ) {
 	if (!imageWidth || !imageHeight || !stageWidth || !stageHeight) return null;
-	const previewScale = Math.min(176 / imageWidth, 126 / imageHeight);
+	const compact = stageWidth <= 740;
+	const previewScale = Math.min(
+		(compact ? 120 : 176) / imageWidth,
+		(compact ? 86 : 126) / imageHeight
+	);
 	const width = Math.round(imageWidth * previewScale);
 	const height = Math.round(imageHeight * previewScale);
 	const scaledWidth = imageWidth * zoom;

@@ -177,6 +177,9 @@
 		animation: fade 160ms ease;
 	}
 	.settings-panel {
+		display: flex;
+		flex-direction: column;
+		max-height: calc(100dvh - 40px);
 		width: min(100%, 560px);
 		overflow: hidden;
 		border: 1px solid rgb(255 255 255 / 55%);
@@ -228,6 +231,9 @@
 		background: var(--panel);
 	}
 	.settings-body {
+		min-height: 0;
+		overflow-y: auto;
+		overscroll-behavior: contain;
 		padding: 20px;
 	}
 	.section-title {
@@ -275,12 +281,12 @@
 	}
 	input:focus,
 	select:focus {
-		border-color: #aaa69d;
+		border-color: var(--muted);
 		box-shadow: 0 0 0 3px rgb(20 20 22 / 5%);
 	}
 	input:disabled {
 		color: var(--muted);
-		background: #f1efea;
+		background: var(--surface);
 	}
 	.api-field input {
 		padding-right: 40px;
@@ -306,8 +312,8 @@
 		margin-top: 9px;
 		padding: 10px;
 		border-radius: 10px;
-		color: #536f61;
-		background: #edf3ef;
+		color: var(--ink-2);
+		background: var(--surface);
 	}
 	.privacy-note :global(svg) {
 		flex: 0 0 auto;
@@ -372,7 +378,7 @@
 		height: 22px;
 		flex: 0 0 auto;
 		border-radius: 999px;
-		background: #d8d5cf;
+		background: var(--line);
 		transition: 160ms ease;
 	}
 	.toggle-row i::after {
@@ -440,6 +446,33 @@
 		}
 	}
 	@media (max-width: 520px) {
+		.settings-backdrop {
+			top: var(--mobile-viewport-top, 0px);
+			bottom: auto;
+			height: var(--mobile-viewport-height, 100dvh);
+			padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
+		}
+		.settings-panel {
+			max-height: 100%;
+			border-radius: 20px;
+		}
+		header,
+		footer {
+			flex-shrink: 0;
+			padding: 12px 16px;
+		}
+		header > button,
+		footer button {
+			min-width: 44px;
+			height: 44px;
+		}
+		.settings-body {
+			padding: 16px;
+		}
+		input,
+		select {
+			font-size: 16px;
+		}
 		.field-grid {
 			grid-template-columns: 1fr;
 		}

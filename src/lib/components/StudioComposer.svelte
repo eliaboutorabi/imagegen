@@ -98,11 +98,17 @@
 
 	$effect(() => {
 		void value;
-		if (textarea) {
-			textarea.style.height = '0px';
-			textarea.style.height = `${Math.min(192, Math.max(72, textarea.scrollHeight))}px`;
-		}
+		resizeTextarea();
 	});
+	function resizeTextarea() {
+		if (textarea) {
+			const style = getComputedStyle(textarea);
+			const min = parseFloat(style.minHeight) || 72;
+			const max = parseFloat(style.maxHeight) || 192;
+			textarea.style.height = '0px';
+			textarea.style.height = `${Math.min(max, Math.max(min, textarea.scrollHeight))}px`;
+		}
+	}
 	$effect(() => {
 		if (busy) menu = null;
 	});
@@ -129,7 +135,8 @@
 		if (busy || !value.trim()) return;
 		closeMenu();
 		onSubmit();
-		textarea?.focus();
+		if (window.matchMedia('(pointer: coarse)').matches) textarea?.blur();
+		else textarea?.focus();
 	}
 	function paste(event: ClipboardEvent) {
 		const files = [...(event.clipboardData?.files ?? [])].filter((file) =>
@@ -149,6 +156,7 @@
 </script>
 
 <svelte:window
+	onresize={resizeTextarea}
 	onpointerdown={(event) => {
 		if (menu && !event.composedPath().includes(root)) closeMenu();
 	}}
@@ -385,7 +393,12 @@
 				: 'Describe your next image, or explore an idea…'}
 			onpaste={paste}
 			onkeydown={(event) => {
-				if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+				if (
+					event.key === 'Enter' &&
+					!event.shiftKey &&
+					!event.isComposing &&
+					window.matchMedia('(hover: hover) and (pointer: fine)').matches
+				) {
 					event.preventDefault();
 					submit();
 				}
@@ -424,7 +437,8 @@
 					aria-expanded={menu === 'image'}
 					title={`Image model · ${imageModelName(settings.imageModel)}`}
 					onclick={(event) => toggleMenu('image', event)}
-					><Icon icon={Image02Icon} size={17} /><span>{imageLabel}</span><Icon
+					><Icon icon={Image02Icon} size={17} /><span class="full-image-label">{imageLabel}</span
+					><span class="short-image-label">{imageLabel.replace('Image ', '')}</span><Icon
 						icon={ArrowDown01Icon}
 						size={13}
 					/></button
@@ -479,6 +493,9 @@
 </div>
 
 <style>
+	.short-image-label {
+		display: none;
+	}
 	.composer-dock {
 		position: relative;
 		width: 100%;
@@ -1075,6 +1092,86 @@
 		}
 		.render-control {
 			padding: 0 7px;
+		}
+	}
+	@media (max-width: 740px) {
+		.studio-composer {
+			padding: 12px 10px 8px;
+			border-radius: 22px;
+		}
+		.studio-composer textarea {
+			min-height: 56px;
+			max-height: 128px;
+			margin-bottom: 6px;
+			padding: 2px 4px;
+		}
+		.composer-toolbar,
+		.composer-tools,
+		.composer-actions {
+			gap: 2px;
+		}
+		.composer-tools {
+			flex: 1;
+		}
+		.attach-control,
+		.text-control,
+		.render-control,
+		.submit-control {
+			width: 44px;
+			height: 44px;
+			flex: 0 0 44px;
+			padding: 0;
+		}
+		.toolbar-divider,
+		.text-control > span,
+		.text-control > :global(svg:last-child),
+		.image-control .full-image-label {
+			display: none;
+		}
+		.text-control > :global(svg:first-child),
+		.image-control .short-image-label {
+			display: block;
+		}
+		.image-control {
+			flex: 1;
+			height: 44px;
+			padding: 0 4px;
+			font-size: 12px;
+		}
+		.image-control > :global(svg:first-child) {
+			display: none;
+		}
+		.composer-caption {
+			min-height: 22px;
+			padding: 6px 6px 0;
+			font-size: 10px;
+		}
+		.keyboard-hint {
+			display: none !important;
+		}
+		.composer-popover {
+			position: fixed;
+			top: calc(var(--mobile-viewport-top, 0px) + var(--topbar-height) + 8px);
+			bottom: auto;
+			left: 10px;
+			right: 10px;
+			width: auto;
+			max-height: calc(var(--mobile-viewport-height, 100dvh) - var(--topbar-height) - 24px);
+			overscroll-behavior: contain;
+		}
+		.composer-popover header .quiet-icon {
+			width: 44px;
+			height: 44px;
+			flex-shrink: 0;
+		}
+		.composer-popover input,
+		.composer-popover select {
+			font-size: 16px;
+			min-height: 44px;
+		}
+		.reference-tile button {
+			width: 32px;
+			height: 32px;
 		}
 	}
 	@media (prefers-reduced-motion: reduce) {

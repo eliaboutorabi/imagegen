@@ -11,31 +11,15 @@
 		BlinkMacSystemFont,
 		'Segoe UI',
 		sans-serif;
-	color: #17181b;
-	background: #f7f6f3;
+	color: var(--ink);
+	background: var(--page);
 	font-synthesis: none;
 	text-rendering: optimizeLegibility;
-	--ink: #18191d;
-	--ink-2: #3e3f43;
-	--muted: #85837d;
-	--surface: #f1f0ec;
-	--line: #e2e0da;
-	--line-soft: #efede8;
-	--accent: #ff593d;
 	--shadow-soft: 0 15px 45px rgb(24 24 27 / 7%);
 }
 
 html[data-theme='dark'] {
 	color-scheme: dark;
-	color: #f3f1ec;
-	background: #0e0f11;
-	--ink: #f3f1ec;
-	--ink-2: #cbc9c3;
-	--muted: #8e8c86;
-	--surface: #252629;
-	--line: #343538;
-	--line-soft: #292a2d;
-	--accent: #ff6c52;
 	--shadow-soft: 0 18px 55px rgb(0 0 0 / 26%);
 }
 
@@ -242,8 +226,8 @@ select:focus-visible {
 	font-weight: 650;
 }
 .connection.connected {
-	color: #477458;
-	background: #f2f7f3;
+	color: var(--accent);
+	background: var(--surface);
 }
 .job-pill {
 	display: inline-flex;
@@ -519,12 +503,12 @@ select:focus-visible {
 	height: 30px;
 	place-items: center;
 	border-radius: 8px;
-	color: #665bc7;
-	background: #eeecff;
+	color: var(--accent);
+	background: var(--surface);
 }
 .decision-summary.brief > span {
-	color: #477458;
-	background: #e8f2eb;
+	color: var(--accent);
+	background: var(--surface);
 }
 .decision-summary > div {
 	display: flex;
@@ -582,8 +566,8 @@ select:focus-visible {
 	height: 30px;
 	place-items: center;
 	border-radius: 9px;
-	color: #5c54b6;
-	background: #eeecff;
+	color: var(--accent);
+	background: var(--surface);
 }
 .activity-card strong,
 .activity-card small {
@@ -609,7 +593,7 @@ select:focus-visible {
 	width: 5px;
 	height: 5px;
 	border-radius: 50%;
-	background: #6b62d6;
+	background: var(--accent);
 	animation: pulse-job 1.3s infinite;
 }
 .concepts-intro {
@@ -1366,19 +1350,19 @@ select:focus-visible {
 	height: 16px;
 	place-items: center;
 	border-radius: 50%;
-	background: #eee4d4;
+	background: var(--surface);
 }
 .sidebar-mode > span i {
 	width: 6px;
 	height: 6px;
 	border-radius: 50%;
-	background: #bd8a36;
+	background: var(--muted);
 }
 .sidebar-mode > span.connected {
-	background: #e1f0e5;
+	background: var(--surface);
 }
 .sidebar-mode > span.connected i {
-	background: #4f9664;
+	background: var(--accent);
 }
 .sidebar-action {
 	display: flex;
@@ -1514,7 +1498,7 @@ select:focus-visible {
 .skeleton-lines i {
 	height: 8px;
 	border-radius: 4px;
-	background: linear-gradient(90deg, #ddd9d1, #f4f2ed, #ddd9d1);
+	background: linear-gradient(90deg, var(--line), var(--surface), var(--line));
 	background-size: 200% 100%;
 	animation: shimmer-line 1.5s linear infinite;
 }
@@ -1904,7 +1888,7 @@ html[data-theme='dark'] .direction-skeleton {
 	box-shadow: none;
 }
 html[data-theme='dark'] .skeleton-lines i {
-	background: linear-gradient(90deg, #303136, #44454a, #303136);
+	background: linear-gradient(90deg, var(--surface), var(--line), var(--surface));
 	background-size: 200% 100%;
 }
 html[data-theme='dark'] .error-bubble {
@@ -1963,7 +1947,7 @@ html[data-theme='dark'] .generating-state {
 	background: linear-gradient(145deg, var(--surface), var(--panel));
 }
 html[data-theme='dark'] .shimmer {
-	background: linear-gradient(90deg, #303136, #494a4f, #303136);
+	background: linear-gradient(90deg, var(--surface), var(--line), var(--surface));
 	background-size: 200% 100%;
 }
 html[data-theme='dark'] .render-orbit,

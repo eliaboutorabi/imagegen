@@ -34,6 +34,8 @@
 	import BrandMark from '$lib/components/BrandMark.svelte';
 	import BriefWidget from '$lib/components/BriefWidget.svelte';
 	import ConversationFeed from '$lib/components/ConversationFeed.svelte';
+	import CreatorCredit from '$lib/components/CreatorCredit.svelte';
+	import { mobileViewport } from '$lib/studio/mobileViewport';
 	import GenerationWall from '$lib/components/GenerationWall.svelte';
 	import SettingsPanel from '$lib/components/SettingsPanel.svelte';
 	import StylePicker from '$lib/components/StylePicker.svelte';
@@ -255,6 +257,7 @@
 		hydrated = true;
 	});
 	onMount(() => () => agentController?.abort());
+	onMount(mobileViewport);
 
 	function stepForProject(value: StudioProject): Step {
 		if (value.activePanel !== undefined)
@@ -1051,6 +1054,7 @@
 			}
 			persist();
 			showAttachmentMessage('Generation added as a reference.');
+			showReferenceInComposer();
 			return;
 		}
 		if (project.activeReferenceIds.length >= MAX_ACTIVE_REFERENCES) {
@@ -1074,6 +1078,14 @@
 		project.activeReferenceIds = [...project.activeReferenceIds, asset.id];
 		persist();
 		showAttachmentMessage('Generation added as a reference.');
+		showReferenceInComposer();
+	}
+
+	function showReferenceInComposer() {
+		if (window.matchMedia('(max-width: 740px)').matches) {
+			closeGenerationViewer();
+			wallOpen = false;
+		}
 	}
 
 	function openGenerationViewer(generation: Generation) {
@@ -1127,8 +1139,9 @@
 		if (!lightboxNaturalWidth || !lightboxNaturalHeight || !lightboxStage) return;
 		lightboxStageWidth = lightboxStage.clientWidth;
 		lightboxStageHeight = lightboxStage.clientHeight;
-		const availableWidth = Math.max(240, lightboxStageWidth - 96);
-		const availableHeight = Math.max(220, lightboxStageHeight - 64);
+		const phone = window.matchMedia('(max-width: 740px)').matches;
+		const availableWidth = Math.max(1, lightboxStageWidth - (phone ? 24 : 96));
+		const availableHeight = Math.max(1, lightboxStageHeight - (phone ? 80 : 64));
 		const fitScale = Math.min(
 			availableWidth / lightboxNaturalWidth,
 			availableHeight / lightboxNaturalHeight,
@@ -1601,6 +1614,15 @@
 			}}><Icon icon={Settings2} size={15} /> Studio settings</button
 		>
 		<button
+			class="sidebar-action mobile-theme-action"
+			type="button"
+			onclick={toggleTheme}
+			aria-label={settings.theme === 'dark' ? 'Use light mode' : 'Use dark mode'}
+		>
+			<Icon icon={settings.theme === 'dark' ? Sun : Moon} size={17} />
+			{settings.theme === 'dark' ? 'Light appearance' : 'Dark appearance'}
+		</button>
+		<button
 			class:armed={resetArmed}
 			class="sidebar-action danger"
 			type="button"
@@ -1612,6 +1634,7 @@
 
 	<header class="topbar">
 		<div class="topbar-left">
+			<CreatorCredit />
 			<button
 				class="menu-button"
 				type="button"

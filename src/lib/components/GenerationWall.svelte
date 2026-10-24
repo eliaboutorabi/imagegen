@@ -286,13 +286,13 @@
 		width: 5px;
 		height: 5px;
 		border-radius: 50%;
-		background: #53a96c;
-		box-shadow: 0 0 0 3px rgb(83 169 108 / 12%);
+		background: var(--accent);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
 	}
 	.live.rendering {
-		border-color: #e7bcae;
-		color: #9d4a36;
-		background: #fff3ef;
+		border-color: var(--line);
+		color: var(--accent);
+		background: var(--surface);
 	}
 	.live.rendering i {
 		background: var(--accent);
@@ -322,10 +322,10 @@
 		height: 62px;
 		margin-bottom: 17px;
 		place-items: center;
-		border: 1px solid #dad7d0;
+		border: 1px solid var(--line);
 		border-radius: 20px;
-		color: #85827b;
-		background: rgb(255 255 255 / 58%);
+		color: var(--muted);
+		background: var(--panel);
 		box-shadow: 0 14px 40px rgb(39 38 34 / 7%);
 		transform: rotate(-4deg);
 	}
@@ -354,7 +354,7 @@
 		bottom: 40px;
 		left: 17px;
 		width: 1px;
-		background: #d9d6cf;
+		background: var(--line);
 	}
 	.generation-card {
 		position: relative;
@@ -378,10 +378,10 @@
 		left: -18px;
 		width: 7px;
 		height: 7px;
-		border: 2px solid #f1f0ec;
+		border: 2px solid var(--wall);
 		border-radius: 50%;
-		background: #aaa69d;
-		box-shadow: 0 0 0 1px #ccc8c0;
+		background: var(--muted);
+		box-shadow: 0 0 0 1px var(--line);
 	}
 	.timeline-dot.active {
 		background: var(--accent);
@@ -408,7 +408,7 @@
 	}
 	.image-frame.has-image {
 		aspect-ratio: auto;
-		background: #d9d7d1;
+		background: var(--surface);
 	}
 	.image-frame .partial-image {
 		width: 100%;
@@ -534,7 +534,7 @@
 		height: 100%;
 		padding: 20px;
 		flex-direction: column;
-		background: linear-gradient(145deg, #e8e6e0, #dcd9d2);
+		background: linear-gradient(145deg, var(--surface), var(--line));
 		border-radius: inherit;
 		overflow: hidden;
 	}
@@ -562,7 +562,7 @@
 		justify-content: center;
 		flex-direction: column;
 		color: var(--muted);
-		background: #ebe9e3;
+		background: var(--surface);
 		text-align: center;
 		border-radius: inherit;
 		overflow: hidden;
@@ -592,7 +592,7 @@
 		height: 9px;
 		margin-bottom: 8px;
 		border-radius: 4px;
-		background: linear-gradient(90deg, #d1cec7, #eceae5, #d1cec7);
+		background: linear-gradient(90deg, var(--line), var(--surface), var(--line));
 		background-size: 200% 100%;
 		animation: shimmer 1.6s infinite;
 	}
@@ -609,7 +609,7 @@
 		align-items: center;
 		gap: 6px;
 		margin-top: auto;
-		color: #77746e;
+		color: var(--muted);
 		font-size: 11px;
 		font-weight: 620;
 	}
@@ -673,7 +673,7 @@
 	@keyframes pulse {
 		50% {
 			opacity: 0.45;
-			box-shadow: 0 0 0 5px rgb(255 89 60 / 10%);
+			box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 10%, transparent);
 		}
 	}
 </style>

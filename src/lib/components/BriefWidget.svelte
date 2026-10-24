@@ -294,7 +294,7 @@
 		padding: 0;
 		border: 0;
 		border-radius: 999px;
-		background: #e2e0db;
+		background: var(--line);
 		transition: 140ms ease;
 	}
 	.density-dots button.active {
@@ -388,6 +388,22 @@
 		transform: none;
 	}
 	@media (max-width: 560px) {
+		.brief-widget {
+			padding: 16px;
+		}
+		.segmented button,
+		.size-presets button {
+			min-height: 44px;
+		}
+		.size-editor label {
+			width: calc((100% - 32px) / 2);
+			min-width: 0;
+		}
+		.size-editor input {
+			width: 100%;
+			height: 44px;
+			font-size: 16px;
+		}
 		.brief-title p {
 			display: none;
 		}

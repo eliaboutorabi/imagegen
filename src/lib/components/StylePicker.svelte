@@ -778,7 +778,7 @@
 
 	@media (max-width: 620px) {
 		.style-widget {
-			padding: 18px;
+			padding: 14px;
 		}
 
 		.widget-head p,
@@ -795,6 +795,29 @@
 
 		.style-grid {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
+			grid-template-rows: none;
+			grid-auto-rows: 120px;
+			max-height: 300px;
+			overflow-y: auto;
+			overscroll-behavior: contain;
+		}
+		.style-browser {
+			padding: 6px;
+			border-radius: 14px;
+		}
+		.preview-stage {
+			grid-template-rows: 160px auto;
+		}
+		.tile-copy strong {
+			font-size: 12px;
+		}
+		.surprise,
+		.continue-shortlist,
+		.preview-actions button {
+			min-height: 44px;
+		}
+		.custom-direction input {
+			font-size: 16px;
 		}
 
 		.shortlist-bar {

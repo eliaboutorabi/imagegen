@@ -111,7 +111,7 @@
 		background: transparent;
 	}
 	.concept-card:hover {
-		border-color: #c9c6bf;
+		border-color: var(--muted);
 		box-shadow: 0 4px 16px rgb(25 25 28 / 5%);
 	}
 	.concept-card.selected {
