@@ -390,7 +390,7 @@
 			onfocus={() => closeMenu()}
 			placeholder={references.length
 				? 'What would you like to change in this image?'
-				: 'Describe your next image, or explore an idea…'}
+				: 'Describe an image, or ask for an edit…'}
 			onpaste={paste}
 			onkeydown={(event) => {
 				if (
@@ -487,7 +487,7 @@
 					? ''
 					: 's'} attached{:else if !settings.apiKey}<button type="button" onclick={onOpenSettings}
 					>Connect OpenAI to start creating <Icon icon={ArrowRight02Icon} size={12} /></button
-				>{:else}Your next idea starts here{/if}</span
+				>{:else}Add a reference image with +{/if}</span
 		><span class="keyboard-hint">Shift + Enter for a new line</span>
 	</div>
 </div>
@@ -507,21 +507,19 @@
 		position: relative;
 		margin: 0;
 		padding: 17px 15px 12px;
-		border: 1px solid color-mix(in srgb, var(--ink) 16%, var(--panel));
+		border: 1px solid var(--line);
 		border-radius: 24px;
 		background: var(--panel);
-		box-shadow:
-			0 3px 6px #00000003,
-			0 12px 40px #00000005;
+		box-shadow: var(--shadow-raised);
 		transition:
 			border-color 160ms,
 			box-shadow 160ms;
 	}
 	.studio-composer:focus-within {
-		border-color: color-mix(in srgb, var(--ink) 28%, var(--panel));
+		border-color: var(--accent);
 		box-shadow:
-			0 3px 6px #00000003,
-			0 12px 40px #00000008;
+			0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent),
+			var(--shadow-raised);
 	}
 	.studio-composer textarea {
 		display: block;
@@ -547,7 +545,7 @@
 		outline: none;
 	}
 	.studio-composer textarea::placeholder {
-		color: color-mix(in srgb, var(--ink) 48%, var(--panel));
+		color: var(--muted);
 		opacity: 1;
 	}
 	.file-input {

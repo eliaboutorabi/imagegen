@@ -89,12 +89,16 @@
 			<span>Generation wall</span>
 			<small
 				>{generations.length
-					? `${generations.length} artifact${generations.length === 1 ? '' : 's'}`
+					? `${generations.length} image${generations.length === 1 ? '' : 's'}`
 					: 'Your visual timeline'}</small
 			>
 		</div>
 		<span class:rendering={activeCount > 0} class="live"
-			><i></i>{activeCount > 0 ? `${activeCount} rendering` : 'Up to date'}</span
+			><i></i>{activeCount > 0
+				? `${activeCount} rendering`
+				: generations.length
+					? 'Up to date'
+					: 'Ready'}</span
 		>
 	</div>
 
@@ -104,8 +108,8 @@
 				<div class="empty-orbit">
 					<Icon icon={ImageIcon} size={21} /><Icon icon={Sparkles} class="spark" size={12} />
 				</div>
-				<strong>Your generations will live here</strong>
-				<p>Every draft, variation, and final image stays in this scrollable timeline.</p>
+				<strong>A home for your images</strong>
+				<p>Start in the chat. Your images will appear here, ready to explore and refine.</p>
 			</div>
 		{:else}
 			<div class="timeline-line"></div>
@@ -275,7 +279,7 @@
 		align-items: center;
 		gap: 5px;
 		padding: 5px 8px;
-		border: 1px solid var(--line);
+		border: 1px solid transparent;
 		border-radius: 999px;
 		color: var(--muted);
 		background: transparent;
@@ -292,7 +296,7 @@
 	.live.rendering {
 		border-color: var(--line);
 		color: var(--accent);
-		background: var(--surface);
+		background: var(--accent-soft);
 	}
 	.live.rendering i {
 		background: var(--accent);
@@ -326,8 +330,7 @@
 		border-radius: 20px;
 		color: var(--muted);
 		background: var(--panel);
-		box-shadow: 0 14px 40px rgb(39 38 34 / 7%);
-		transform: rotate(-4deg);
+		box-shadow: var(--shadow-soft);
 	}
 	.empty-orbit :global(.spark) {
 		position: absolute;

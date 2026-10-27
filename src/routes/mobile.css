@@ -68,9 +68,9 @@
 		font-size: 11px;
 	}
 	.assistant-copy h1 {
-		font-size: clamp(36px, 10.5vw, 48px);
-		line-height: 1.08;
-		letter-spacing: -0.055em;
+		font-size: clamp(32px, 8.8vw, 40px);
+		line-height: 1.14;
+		letter-spacing: -0.045em;
 	}
 	.assistant-copy > p:not(.chat-line) {
 		margin-top: 18px;
@@ -78,14 +78,20 @@
 		line-height: 1.6;
 	}
 	.welcome-examples {
-		height: clamp(86px, 26vw, 126px);
 		gap: 8px;
 		margin: 24px 0;
 	}
+	.welcome-examples figure {
+		padding: 5px;
+		border-radius: 11px;
+	}
 	.welcome-examples img {
-		width: calc((100% - 16px) / 3);
-		padding: 3px;
-		border-radius: 9px;
+		height: clamp(72px, 22vw, 96px);
+		border-radius: 6px;
+	}
+	.welcome-examples figcaption {
+		padding: 8px 1px 3px;
+		font-size: 11px;
 	}
 	.starter-prompts {
 		margin-top: 24px;

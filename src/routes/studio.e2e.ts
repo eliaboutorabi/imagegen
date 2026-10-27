@@ -496,7 +496,7 @@ test('browser harness streams directions, renders, edits references and preserve
 	const requests = await mockStudio(page);
 	await page.goto('/');
 	await expect(
-		page.getByRole('heading', { name: 'Big ideas. Beautifully made clear.' })
+		page.getByRole('heading', { name: 'Make your ideas beautifully clear.' })
 	).toBeVisible();
 	await expect(page.getByRole('complementary', { name: 'Studio navigation' })).toBeVisible();
 	await page
@@ -547,7 +547,7 @@ test('browser harness streams directions, renders, edits references and preserve
 	await page.getByRole('button', { name: 'Use dark mode' }).click();
 	await expect(page.locator('.concept-card').first()).toHaveCSS(
 		'background-color',
-		'rgb(34, 34, 34)'
+		'rgb(41, 38, 34)'
 	);
 	await page.screenshot({ path: '/tmp/infogen-workspace-dark.png', fullPage: true });
 	await page
@@ -560,7 +560,7 @@ test('browser harness streams directions, renders, edits references and preserve
 	expect(requests.filter((item) => item.url.includes('/images/'))).toHaveLength(4);
 	await page.getByRole('button', { name: 'New blank canvas', exact: true }).click();
 	await expect(
-		page.getByRole('heading', { name: 'Big ideas. Beautifully made clear.' })
+		page.getByRole('heading', { name: 'Make your ideas beautifully clear.' })
 	).toBeVisible();
 	await page.getByRole('button', { name: /How urban trees cool cities.*3 directions/ }).click();
 	await expect(page.locator('img[alt^="Generated infographic:"]')).toHaveCount(4);
@@ -668,7 +668,7 @@ test('deleting a canvas cancels its work and cannot resurrect it on reload', asy
 	await page.getByRole('button', { name: 'Delete this canvas', exact: true }).click();
 	await page.getByRole('button', { name: 'Confirm deletion', exact: true }).click();
 	await expect(
-		page.getByRole('heading', { name: 'Big ideas. Beautifully made clear.' })
+		page.getByRole('heading', { name: 'Make your ideas beautifully clear.' })
 	).toBeVisible();
 	await page.waitForTimeout(800);
 	await page.reload();
@@ -711,12 +711,12 @@ test('image jobs finish in their original canvas without replacing the active ne
 	await expect.poll(() => requests.filter((item) => item.url.includes('/images/')).length).toBe(1);
 	await page.getByRole('button', { name: 'New blank canvas', exact: true }).click();
 	await expect(
-		page.getByRole('heading', { name: 'Big ideas. Beautifully made clear.' })
+		page.getByRole('heading', { name: 'Make your ideas beautifully clear.' })
 	).toBeVisible();
 	await page.waitForTimeout(800);
 	await page.reload();
 	await expect(
-		page.getByRole('heading', { name: 'Big ideas. Beautifully made clear.' })
+		page.getByRole('heading', { name: 'Make your ideas beautifully clear.' })
 	).toBeVisible();
 	await page.getByRole('button', { name: /One direct image.*1 renders/ }).click();
 	await expect(page.locator('img[alt^="Generated infographic:"]')).toHaveCount(1);
@@ -776,7 +776,7 @@ test('creator credit opens from the header and dismisses without moving the layo
 	await expect(credit).toBeHidden();
 	await page.getByRole('button', { name: 'Use dark mode' }).click();
 	await trigger.click();
-	await expect(credit).toHaveCSS('background-color', 'rgb(34, 34, 34)');
+	await expect(credit).toHaveCSS('background-color', 'rgb(41, 38, 34)');
 	await page.screenshot({ path: '/tmp/infogen-creator-credit.png' });
 	await trigger.press('Tab');
 	await expect(credit).toBeHidden();
@@ -784,46 +784,81 @@ test('creator credit opens from the header and dismisses without moving the layo
 });
 
 for (const theme of ['light', 'dark']) {
-	test(`${theme} theme uses neutral surfaces and accents`, async ({ page }) => {
+	test(`${theme} theme uses warm surfaces with readable text and quiet motion`, async ({
+		page
+	}) => {
 		const requests = await mockStudio(page, theme);
+		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await page.goto('/');
 		await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-		const expectNeutral = async (selectors: string[]) => {
-			const colors = await page.evaluate(
-				(selectors) =>
-					selectors.flatMap((selector) => {
-						const style = getComputedStyle(document.querySelector(selector)!);
-						return ['color', 'background-color', 'border-top-color'].map((property) => ({
-							selector,
-							property,
-							value: style.getPropertyValue(property)
-						}));
-					}),
-				selectors
+		await expect(page.locator('.canvas-history button')).toHaveCount(1);
+		const tokens = await page.evaluate(() => {
+			const style = getComputedStyle(document.documentElement);
+			return Object.fromEntries(
+				['page', 'panel', 'sidebar', 'wall', 'surface', 'accent', 'ink', 'ink-2', 'muted'].map(
+					(name) => [name, style.getPropertyValue(`--${name}`).trim()]
+				)
 			);
-			for (const { selector, property, value } of colors) {
-				const channels = value
-					.match(/[\d.]+/g)!
-					.slice(0, 3)
-					.map(Number);
-				expect(new Set(channels).size, `${selector} ${property}: ${value}`).toBe(1);
-			}
+		});
+		const luminance = (color: string) => {
+			const channels = color
+				.slice(1)
+				.match(/../g)!
+				.map((channel) => parseInt(channel, 16));
+			return channels.reduce((total, channel, index) => {
+				const value = channel / 255;
+				return (
+					total +
+					(value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4) *
+						[0.2126, 0.7152, 0.0722][index]
+				);
+			}, 0);
 		};
-		await expectNeutral([
-			'.studio-shell',
-			'.studio-sidebar',
-			'.wall',
-			'.studio-composer',
-			'.welcome-eyebrow',
-			'.assistant-copy h1 em',
-			'.sidebar-mode > span',
-			'.sidebar-mode > span i',
-			'.live i'
+		for (const name of ['page', 'panel', 'sidebar', 'wall', 'surface', 'accent']) {
+			const [red, green, blue] = tokens[name]
+				.slice(1)
+				.match(/../g)!
+				.map((c) => parseInt(c, 16));
+			expect(red, name).toBeGreaterThan(green);
+			expect(green, name).toBeGreaterThan(blue);
+		}
+		for (const foreground of ['ink', 'ink-2', 'muted', 'accent']) {
+			for (const background of ['page', 'panel', 'sidebar', 'wall', 'surface']) {
+				const a = luminance(tokens[foreground]);
+				const b = luminance(tokens[background]);
+				expect(
+					(Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05),
+					`${foreground} on ${background}`
+				).toBeGreaterThanOrEqual(4.5);
+			}
+		}
+		await expect(page.locator('.welcome-examples figcaption')).toHaveText([
+			'Editorial',
+			'Data-led',
+			'Hand-drawn'
 		]);
-		await page.screenshot({ path: `/tmp/infogen-neutral-${theme}.png` });
+		for (const preview of await page.locator('.welcome-examples img').all()) {
+			await expect(preview).toHaveCSS('object-fit', 'contain');
+			await expect(preview).toHaveCSS('filter', 'none');
+		}
+		const composer = page.getByRole('textbox', { name: 'Message', exact: true });
+		await composer.focus();
+		const motion = await page.locator('.studio-composer').evaluate((element) => {
+			const style = getComputedStyle(element);
+			return {
+				duration: parseFloat(style.transitionDuration),
+				iterations: style.animationIterationCount
+			};
+		});
+		expect(motion.duration).toBeLessThanOrEqual(0.01);
+		expect(motion.iterations).toBe('1');
+		await page.screenshot({ path: `/tmp/infogen-warm-${theme}.png` });
 		await page.getByRole('button', { name: 'Settings', exact: true }).click();
 		await expect(page.getByRole('dialog', { name: 'Studio settings' })).toBeVisible();
-		await expectNeutral(['.privacy-note']);
+		await expect(page.locator('.privacy-note')).toHaveCSS(
+			'color',
+			theme === 'dark' ? 'rgb(200, 190, 177)' : 'rgb(94, 89, 82)'
+		);
 		expect(requests).toHaveLength(0);
 	});
 }
@@ -844,6 +879,8 @@ for (const width of [1100, 1280, 1600]) {
 			'.workspace',
 			'.conversation-scroll',
 			'.chat-column',
+			'.assistant-copy h1',
+			'.welcome-examples',
 			'.composer-wrap',
 			'.studio-composer',
 			'.composer-toolbar',
@@ -867,8 +904,8 @@ for (const width of [1100, 1280, 1600]) {
 		await expect(composer).toHaveValue(
 			'A draft that should stay exactly where I left it.\nWith a second line.'
 		);
-		await expect(page.locator('.studio-shell')).toHaveCSS('background-color', 'rgb(25, 25, 25)');
-		await expect(page.locator('.wall')).toHaveCSS('background-color', 'rgb(22, 22, 22)');
+		await expect(page.locator('.studio-shell')).toHaveCSS('background-color', 'rgb(32, 30, 27)');
+		await expect(page.locator('.wall')).toHaveCSS('background-color', 'rgb(29, 27, 24)');
 		if (width === 1600) await page.screenshot({ path: '/tmp/infogen-theme-refinement-dark.png' });
 		await page.getByRole('button', { name: 'Use light mode' }).click();
 		expect(await geometry()).toEqual(light);

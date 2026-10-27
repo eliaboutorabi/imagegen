@@ -1,31 +1,37 @@
-/* Desktop workspace system. Component styles consume these theme tokens. */
+/* Warm neutrals keep the workspace quiet; artwork keeps its original colors. */
 :root {
 	--topbar-height: 48px;
-	--page: #fafafa;
-	--panel: #ffffff;
-	--sidebar: #f2f2f2;
-	--wall: #f5f5f5;
-	--ink: #202020;
-	--ink-2: #4b4b4b;
-	--muted: #737373;
-	--line: #e0e0e0;
-	--line-soft: #ededed;
-	--surface: #eeeeee;
-	--accent: #202020;
+	--page: #f8f6f2;
+	--panel: #fffdf9;
+	--sidebar: #eeebe5;
+	--wall: #f2efe9;
+	--ink: #302d29;
+	--ink-2: #5e5952;
+	--muted: #6e675e;
+	--line: #ded8ce;
+	--line-soft: #eae5dc;
+	--surface: #efebe4;
+	--accent: #855c45;
+	--accent-soft: #eee3d8;
+	--shadow-soft: 0 4px 24px rgb(66 48 27 / 4%);
+	--shadow-raised: 0 6px 28px rgb(66 48 27 / 6%);
 	font-size: 15px;
 }
 html[data-theme='dark'] {
-	--page: #191919;
-	--panel: #222222;
-	--sidebar: #141414;
-	--wall: #161616;
-	--ink: #eeeeee;
-	--ink-2: #c7c7c7;
-	--muted: #a3a3a3;
-	--line: #373737;
-	--line-soft: #2c2c2c;
-	--surface: #2c2c2c;
-	--accent: #dedede;
+	--page: #201e1b;
+	--panel: #292622;
+	--sidebar: #1b1917;
+	--wall: #1d1b18;
+	--ink: #f0e9df;
+	--ink-2: #c8beb1;
+	--muted: #aea395;
+	--line: #443e36;
+	--line-soft: #36312b;
+	--surface: #332e28;
+	--accent: #d5b291;
+	--accent-soft: #3b3027;
+	--shadow-soft: 0 4px 24px rgb(0 0 0 / 12%);
+	--shadow-raised: 0 6px 28px rgb(0 0 0 / 18%);
 	color: var(--ink);
 	background: var(--page);
 }
@@ -214,7 +220,7 @@ html[data-theme='dark'] .canvas-history > button.active {
 	color: var(--ink);
 	background: var(--panel);
 	border-color: var(--line);
-	box-shadow: 0 2px 4px #00000003;
+	box-shadow: inset 2px 0 var(--accent);
 }
 .canvas-history > button:hover,
 html[data-theme='dark'] .canvas-history > button:hover {
@@ -272,22 +278,24 @@ html[data-theme='dark'] .conversation {
 	padding: 40px 32px 48px;
 }
 .intro-row {
-	margin-top: 25px;
+	margin-top: 20px;
 }
 .intro-row .assistant-copy {
 	max-width: 610px;
 }
 .welcome-eyebrow {
 	font-size: 12px;
-	color: var(--accent);
+	color: var(--muted);
 	font-weight: 550;
-	margin-bottom: 24px;
+	margin-bottom: 20px;
+	letter-spacing: 0.015em;
 }
 .assistant-copy h1 {
-	font-size: clamp(36px, 4.1vw, 62px);
-	line-height: 1.09;
+	font-size: clamp(36px, 3.4vw, 52px);
+	line-height: 1.12;
 	font-weight: 500;
-	letter-spacing: -0.055em;
+	letter-spacing: -0.045em;
+	text-wrap: balance;
 }
 .assistant-copy h1 em {
 	font-family: Georgia, 'Times New Roman', serif;
@@ -296,34 +304,41 @@ html[data-theme='dark'] .conversation {
 }
 .intro-row p {
 	max-width: 470px;
-	margin-top: 22px;
+	margin-top: 20px;
 	font-size: 15px;
 	line-height: 1.7;
-	color: var(--muted);
+	color: var(--ink-2);
 }
 .welcome-examples {
-	display: flex;
-	align-items: center;
-	gap: 14px;
-	margin: 32px 0;
-	max-width: 580px;
-	height: 145px;
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+	margin: 28px 0;
+	max-width: 520px;
+}
+.welcome-examples figure {
+	min-width: 0;
+	margin: 0;
+	padding: 8px;
+	border: 1px solid var(--line);
+	border-radius: 14px;
+	background: var(--panel);
+	box-shadow: var(--shadow-soft);
 }
 .welcome-examples img {
-	width: calc(33.333% - 10px);
-	height: 100%;
+	display: block;
+	width: 100%;
+	height: 124px;
 	object-fit: contain;
 	background: var(--surface);
-	border: 1px solid var(--line);
-	padding: 5px;
-	border-radius: 10px;
-	box-shadow: 0 4px 12px #00000006;
+	border-radius: 8px;
 }
-.welcome-examples img:nth-child(2) {
-	transform: rotate(2deg);
-}
-.welcome-examples img:first-child {
-	transform: rotate(-2deg);
+.welcome-examples figcaption {
+	padding: 9px 2px 2px;
+	color: var(--ink-2);
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 1.4;
 }
 .starter-prompts {
 	margin: 24px 0 0;
@@ -332,6 +347,8 @@ html[data-theme='dark'] .conversation {
 	font-size: 12px;
 	color: var(--muted);
 	font-weight: 500;
+	letter-spacing: 0;
+	text-transform: none;
 }
 .starter-prompts > div {
 	display: flex;
@@ -341,17 +358,22 @@ html[data-theme='dark'] .conversation {
 }
 .starter-prompts button,
 html[data-theme='dark'] .starter-prompts button {
-	font-size: 12px;
-	min-height: 38px;
-	padding: 10px 12px;
+	font-size: 13px;
+	min-height: 42px;
+	padding: 10px 14px;
 	border: 1px solid var(--line);
-	border-radius: 10px;
+	border-radius: 12px;
 	color: var(--ink-2);
-	background: transparent;
+	background: var(--panel);
 	box-shadow: none;
+	transition:
+		border-color 160ms,
+		background-color 160ms;
 }
-.starter-prompts button:hover {
-	background: var(--surface);
+.starter-prompts button:hover,
+html[data-theme='dark'] .starter-prompts button:hover {
+	border-color: var(--accent);
+	background: var(--accent-soft);
 }
 .widget-indent {
 	margin-left: 0;
@@ -601,6 +623,7 @@ html[data-theme='dark'] .project-menu {
 	*::after {
 		scroll-behavior: auto !important;
 		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
 		transition-duration: 0.01ms !important;
 	}
 }

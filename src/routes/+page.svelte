@@ -1739,22 +1739,39 @@
 					{#if step === 'topic' && !project.messages?.length}
 						<div class="intro-row">
 							<div class="assistant-copy">
-								<span class="speaker welcome-eyebrow">A little clarity. A lot of possibility.</span>
-								<h1>Big ideas.<br /><em>Beautifully</em> made clear.</h1>
+								<span class="speaker welcome-eyebrow">A little space to create</span>
+								<h1>Make your ideas<br /><em>beautifully clear.</em></h1>
 								<p>
-									Your creative partner for infographics, visual stories, and thoughtful image
-									edits. Start with an idea—or bring an image to reimagine.
+									Turn an idea into an infographic. Explore a few directions, or add an image you’d
+									like to change.
 								</p>
 							</div>
 						</div>
-						<div class="welcome-examples" aria-hidden="true">
-							<img src={`${base}${getStyle('editorial').image}`} alt="" /><img
-								src={`${base}${getStyle('data-noir').image}`}
-								alt=""
-							/><img src={`${base}${getStyle('whiteboard').image}`} alt="" />
+						<div class="welcome-examples" role="group" aria-label="Example infographic styles">
+							<figure>
+								<img
+									src={`${base}${getStyle('editorial').image}`}
+									alt="Editorial infographic example"
+								/>
+								<figcaption>Editorial</figcaption>
+							</figure>
+							<figure>
+								<img
+									src={`${base}${getStyle('data-noir').image}`}
+									alt="Data-led infographic example"
+								/>
+								<figcaption>Data-led</figcaption>
+							</figure>
+							<figure>
+								<img
+									src={`${base}${getStyle('whiteboard').image}`}
+									alt="Hand-drawn infographic example"
+								/>
+								<figcaption>Hand-drawn</figcaption>
+							</figure>
 						</div>
 						<div class="starter-prompts">
-							<span>Or start with an idea</span>
+							<span>Try a starting point</span>
 							<div>
 								{#each starterTopics as topic (topic)}<button
 										type="button"
